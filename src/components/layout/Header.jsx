@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Clock3, Heart, MapPin, Menu, Scale, Search, ShoppingBag, X } from 'lucide-react';
+import { Clock3, Heart, MapPin, Menu, Scale, Search, ShoppingBag, UserRound, X } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
+import { useAuth } from '../../context/AuthContext';
+import AuthModal from '../auth/AuthModal';
 
 function HeaderAction({ to, icon: Icon, label, count = 0, mobileVisible = false }) {
   const content = (
@@ -38,8 +40,10 @@ function HeaderAction({ to, icon: Icon, label, count = 0, mobileVisible = false 
 export default function Header() {
   const navigate = useNavigate();
   const { cartCount, compare, wishlist } = useCommerce();
+  const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const handleSearch = (event) => {
     event.preventDefault();
@@ -64,6 +68,10 @@ export default function Header() {
           </div>
           <nav className="flex items-center gap-5" aria-label="Liên kết hỗ trợ">
             <Link to="/order-lookup" className="transition-colors hover:text-primary-hover">Tra cứu đơn hàng</Link>
+            <button type="button" onClick={() => setAuthModalOpen(true)} className="flex items-center gap-1.5 transition-colors hover:text-primary-hover" aria-label={user ? 'Mở tài khoản' : 'Đăng nhập hoặc đăng ký'}>
+              <UserRound size={13} className="text-primary" aria-hidden="true" />
+              {user ? 'Tài khoản' : 'Đăng nhập'}
+            </button>
             <Link to="/products" className="hidden transition-colors hover:text-primary-hover sm:block">Sản phẩm</Link>
           </nav>
         </div>
@@ -154,12 +162,16 @@ export default function Header() {
             <Link to="/order-lookup" onClick={() => setMobileMenuOpen(false)} className="flex min-h-12 items-center justify-between border-b border-border-subtle px-4 text-sm font-semibold text-text-main hover:text-primary-hover">
               Tra cứu đơn hàng <Search size={16} className="text-primary" aria-hidden="true" />
             </Link>
+            <button type="button" onClick={() => { setMobileMenuOpen(false); setAuthModalOpen(true); }} className="flex min-h-12 items-center justify-between border-b border-border-subtle px-4 text-left text-sm font-semibold text-text-main hover:text-primary-hover">
+              {user ? 'Tài khoản của tôi' : 'Đăng nhập / Đăng ký'} <UserRound size={16} className="text-primary" aria-hidden="true" />
+            </button>
             <a href="tel:0961560888" className="flex min-h-12 items-center justify-between px-4 text-sm font-semibold text-text-main hover:text-primary-hover">
               Tư vấn: 0961.56.0888 <MapPin size={16} className="text-primary" aria-hidden="true" />
             </a>
           </div>
         </nav>
       )}
+      <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </header>
   );
 }

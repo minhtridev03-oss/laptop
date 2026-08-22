@@ -4,13 +4,16 @@ import { HelmetProvider } from 'react-helmet-async'
 import './index.css'
 import App from './App.jsx'
 import { CommerceProvider } from './context/CommerceContext.jsx'
+import { AuthProvider } from './context/AuthContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>
-      <CommerceProvider>
-        <App />
-      </CommerceProvider>
+      <AuthProvider>
+        <CommerceProvider>
+          <App />
+        </CommerceProvider>
+      </AuthProvider>
     </HelmetProvider>
   </StrictMode>,
 )
