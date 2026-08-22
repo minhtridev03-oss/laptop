@@ -127,6 +127,10 @@
     background: linear-gradient(90deg, #f1d58a, transparent);
   }
 
+  .luxury-mega-menu {
+    position: absolute;
+  }
+
   .luxury-eyebrow {
     color: #d6b873;
     font-family: 'JetBrains Mono', monospace;
