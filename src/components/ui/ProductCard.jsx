@@ -1,19 +1,17 @@
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, ImageOff, Sparkles } from 'lucide-react';
-
-const formatPrice = (value) => {
-  const price = Number(value);
-  if (!Number.isFinite(price) || price <= 0) return null;
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency', currency: 'VND', maximumFractionDigits: 0,
-  }).format(price);
-};
+import { Heart, ImageOff, Scale, ShoppingBag, Sparkles } from 'lucide-react';
+import { useCommerce } from '../../context/CommerceContext';
+import { formatCommercePrice } from '../../lib/commerce';
 
 export default function ProductCard({ product }) {
-  const price = formatPrice(product.price);
-  const originalPrice = formatPrice(product.originalPrice);
+  const { addToCart, isCompared, isWishlisted, toggleCompare, toggleWishlist } = useCommerce();
+  const price = formatCommercePrice(product.price);
+  const originalPrice = formatCommercePrice(product.originalPrice);
   const specs = Object.values(product.specs ?? {}).filter(Boolean).slice(0, 3);
   const hasDiscount = Number(product.discount) > 0;
+  const wished = isWishlisted(product.id);
+  const compared = isCompared(product.id);
+  const canPurchase = product.status !== 'inactive' && Number(product.stockQuantity) !== 0;
 
   return (
     <article className="luxury-panel hover-lift group flex h-full flex-col overflow-hidden rounded-[10px] p-3 sm:p-4">
@@ -29,6 +27,27 @@ export default function ProductCard({ product }) {
               <Sparkles size={10} aria-hidden="true" /> Nổi bật
             </span>
           )}
+        </div>
+
+        <div className="absolute right-2 top-2 z-20 flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={() => toggleWishlist(product)}
+            className={`grid h-10 w-10 place-items-center rounded-md border backdrop-blur transition-colors ${wished ? 'border-primary/55 bg-primary/15 text-primary-hover' : 'border-border-subtle bg-bg-main/85 text-text-muted hover:border-primary/45 hover:text-primary-hover'}`}
+            aria-label={wished ? `Bỏ yêu thích ${product.name}` : `Yêu thích ${product.name}`}
+            aria-pressed={wished}
+          >
+            <Heart size={16} fill={wished ? 'currentColor' : 'none'} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleCompare(product)}
+            className={`grid h-10 w-10 place-items-center rounded-md border backdrop-blur transition-colors ${compared ? 'border-primary/55 bg-primary/15 text-primary-hover' : 'border-border-subtle bg-bg-main/85 text-text-muted hover:border-primary/45 hover:text-primary-hover'}`}
+            aria-label={compared ? `Bỏ so sánh ${product.name}` : `So sánh ${product.name}`}
+            aria-pressed={compared}
+          >
+            <Scale size={16} aria-hidden="true" />
+          </button>
         </div>
 
         <Link
@@ -74,15 +93,21 @@ export default function ProductCard({ product }) {
             <div className="min-w-0">
               <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.12em] text-text-muted">Giá sản phẩm</span>
               <strong className="block truncate font-['Sora'] text-base font-bold text-primary-hover sm:text-lg">
-                {price ?? 'Liên hệ'}
+                {price}
               </strong>
               {originalPrice && Number(product.originalPrice) > Number(product.price) && (
                 <del className="mt-1 block text-[10px] text-text-muted">{originalPrice}</del>
               )}
             </div>
-            <Link to={`/product/${product.id}`} className="luxury-primary-button grid h-11 w-11 shrink-0 place-items-center rounded-md" aria-label={`Xem chi tiết ${product.name}`}>
-              <ArrowUpRight size={17} aria-hidden="true" />
-            </Link>
+            <button
+              type="button"
+              onClick={() => addToCart(product, 1)}
+              disabled={!canPurchase}
+              className="luxury-primary-button grid h-11 w-11 shrink-0 place-items-center rounded-md disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label={canPurchase ? `Thêm ${product.name} vào giỏ hàng` : `${product.name} đang hết hàng`}
+            >
+              <ShoppingBag size={17} aria-hidden="true" />
+            </button>
           </div>
         </div>
       </div>
