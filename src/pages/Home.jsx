@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import {
@@ -106,6 +106,17 @@ export default function Home() {
   const [flashSaleProducts, setFlashSaleProducts] = useState([]);
   const [bestSellerProducts, setBestSellerProducts] = useState([]);
   const [newestProducts, setNewestProducts] = useState([]);
+  const categoryCloseTimer = useRef(null);
+
+  const cancelCategoryClose = () => window.clearTimeout(categoryCloseTimer.current);
+  const openCategory = (categoryId) => {
+    cancelCategoryClose();
+    setActiveCategory(categoryId);
+  };
+  const scheduleCategoryClose = () => {
+    cancelCategoryClose();
+    categoryCloseTimer.current = window.setTimeout(() => setActiveCategory(null), 220);
+  };
 
   useEffect(() => {
     let ignore = false;
@@ -162,6 +173,8 @@ export default function Home() {
     return () => window.clearInterval(intervalId);
   }, [carouselPaused, mainBanners.length]);
 
+  useEffect(() => () => window.clearTimeout(categoryCloseTimer.current), []);
+
   const activeBanner = mainBanners[currentSlide] ?? mainBanners[0];
   const activeCategoryData = categories.find((category) => category.id === activeCategory);
 
@@ -180,7 +193,8 @@ export default function Home() {
           <nav
             className="luxury-panel relative z-40 hidden h-[420px] w-[280px] shrink-0 self-start flex-col rounded-[10px] lg:flex"
             aria-label="Danh mục sản phẩm"
-            onMouseLeave={() => setActiveCategory(null)}
+            onMouseEnter={cancelCategoryClose}
+            onMouseLeave={scheduleCategoryClose}
             onBlur={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget)) setActiveCategory(null);
             }}
@@ -197,10 +211,10 @@ export default function Home() {
                 const Icon = iconMap[category.icon];
                 const isActive = activeCategory === category.id;
                 return (
-                  <li key={category.id} onMouseEnter={() => setActiveCategory(category.id)}>
+                  <li key={category.id} onMouseEnter={() => openCategory(category.id)}>
                     <Link
                       to={`/category/${category.id}`}
-                      onFocus={() => setActiveCategory(category.id)}
+                      onFocus={() => openCategory(category.id)}
                       className={`group flex min-h-10 items-center justify-between rounded-md px-3 py-2 font-medium transition-colors ${
                         isActive ? 'bg-primary/[0.08] text-primary-hover' : 'text-text-muted hover:bg-primary/[0.05] hover:text-primary-hover'
                       }`}
@@ -217,7 +231,7 @@ export default function Home() {
             </ul>
 
             {activeCategoryData?.category_groups?.length > 0 && (
-              <div className="luxury-panel luxury-mega-menu left-full top-0 z-50 ml-2 h-[420px] w-[min(860px,calc(100vw-350px))] overflow-y-auto rounded-[10px] p-7">
+              <div className="luxury-panel luxury-mega-menu top-0 z-50 h-[420px] w-[min(860px,calc(100vw-350px))] overflow-y-auto rounded-[10px] p-7" onMouseEnter={cancelCategoryClose}>
                 <div className="grid grid-cols-3 gap-x-8 gap-y-7">
                   {activeCategoryData.category_groups.map((group) => (
                     <div key={group.id}>
