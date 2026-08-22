@@ -46,10 +46,13 @@ export default function ProductList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [productSeriesLinks, setProductSeriesLinks] = useState([]);
+  const [seriesLinksError, setSeriesLinksError] = useState(null);
   const [priceRange, setPriceRange] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const query = (searchParams.get('q') ?? '').trim();
+  const requestedSeriesId = searchParams.get('series');
   const requestedSort = searchParams.get('sort') ?? 'featured';
   const sort = sortOptions.some((option) => option.id === requestedSort) ? requestedSort : 'featured';
 
@@ -60,9 +63,13 @@ export default function ProductList() {
       setLoading(true);
       setError(null);
       try {
-        const [productsResponse, categoriesResponse] = await Promise.all([
+        const [productsResponse, categoriesResponse, productSeriesResponse] = await Promise.all([
           supabase.from('products').select('*').order('sort_order', { ascending: true }),
-          supabase.from('categories').select('id, name, sort_order').order('sort_order', { ascending: true }),
+          supabase
+            .from('categories')
+            .select('id, name, sort_order, category_groups(id, name, sort_order, category_items(id, name, sort_order, link_url))')
+            .order('sort_order', { ascending: true }),
+          supabase.from('product_category_items').select('product_id, category_item_id'),
         ]);
 
         if (productsResponse.error) throw productsResponse.error;
@@ -70,6 +77,8 @@ export default function ProductList() {
         if (!ignore) {
           setProducts(productsResponse.data ?? []);
           setCategories(categoriesResponse.data ?? []);
+          setProductSeriesLinks(productSeriesResponse.data ?? []);
+          setSeriesLinksError(productSeriesResponse.error ?? null);
         }
       } catch (fetchError) {
         if (!ignore) setError(fetchError);
@@ -82,17 +91,45 @@ export default function ProductList() {
     return () => { ignore = true; };
   }, []);
 
-  const category = categories.find((item) => String(item.id) === String(categoryId));
-  const pageTitle = category?.name ?? (query ? `Kết quả cho “${query}”` : 'Tất cả sản phẩm');
+  const seriesEntries = useMemo(() => categories.flatMap((categoryItem) => (
+    (categoryItem.category_groups ?? []).flatMap((group) => (
+      (group.category_items ?? []).map((item) => ({
+        ...item,
+        categoryId: categoryItem.id,
+        categoryName: categoryItem.name,
+        groupName: group.name,
+      }))
+    ))
+  )), [categories]);
+
+  const legacySeries = useMemo(() => {
+    if (requestedSeriesId || !categoryId) return null;
+    return seriesEntries.find((item) => {
+      const legacyPath = item.link_url?.split('?')[0]?.replace(/\/$/, '');
+      return legacyPath === `/category/${categoryId}`;
+    }) ?? null;
+  }, [categoryId, requestedSeriesId, seriesEntries]);
+
+  const activeSeriesId = requestedSeriesId ?? legacySeries?.id ?? null;
+  const selectedSeries = seriesEntries.find((item) => String(item.id) === String(activeSeriesId));
+  const resolvedCategoryId = selectedSeries?.categoryId ?? legacySeries?.categoryId ?? categoryId;
+  const category = categories.find((item) => String(item.id) === String(resolvedCategoryId));
+  const pageTitle = selectedSeries?.name ?? legacySeries?.name ?? category?.name ?? (query ? `Kết quả cho “${query}”` : 'Tất cả sản phẩm');
+  const relatedProductIds = useMemo(() => new Set(
+    productSeriesLinks
+      .filter((link) => String(link.category_item_id) === String(activeSeriesId))
+      .map((link) => String(link.product_id)),
+  ), [activeSeriesId, productSeriesLinks]);
 
   const filteredProducts = useMemo(() => {
     const activeRange = priceRanges.find((range) => range.id === priceRange) ?? priceRanges[0];
     const normalizedQuery = query.toLocaleLowerCase('vi');
     let result = products.filter((product) => {
-      const matchesCategory = !categoryId || String(product.category_id) === String(categoryId);
+      const matchesCategory = !resolvedCategoryId || String(product.category_id) === String(resolvedCategoryId);
+      const matchesSeries = !activeSeriesId || relatedProductIds.has(String(product.id));
       const matchesQuery = !normalizedQuery || product.name?.toLocaleLowerCase('vi').includes(normalizedQuery);
       const matchesPrice = activeRange.test(Number(product.price) || 0);
-      return matchesCategory && matchesQuery && matchesPrice;
+      return matchesCategory && matchesSeries && matchesQuery && matchesPrice;
     });
 
     if (sort === 'flash-sale') result = result.filter((product) => product.is_flash_sale);
@@ -102,7 +139,7 @@ export default function ProductList() {
     if (sort === 'price-desc') result = [...result].sort((a, b) => Number(b.price) - Number(a.price));
 
     return result;
-  }, [categoryId, priceRange, products, query, sort]);
+  }, [activeSeriesId, priceRange, products, query, relatedProductIds, resolvedCategoryId, sort]);
 
   const handleSortChange = (event) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -124,6 +161,17 @@ export default function ProductList() {
           <div className="flex flex-col justify-between gap-5 border-b border-border-subtle pb-6 sm:flex-row sm:items-end">
             <div>
               <h1 className="luxury-heading text-2xl sm:text-3xl">{pageTitle}</h1>
+              {selectedSeries && category && (
+                <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-text-muted">
+                  <Link to={`/category/${category.id}`} className="transition-colors hover:text-primary-hover">{category.name}</Link>
+                  <ChevronRight size={13} aria-hidden="true" />
+                  <span className="text-primary-hover">{selectedSeries.name}</span>
+                  <span aria-hidden="true">·</span>
+                  <Link to={`/category/${category.id}`} className="underline decoration-primary/40 underline-offset-4 transition-colors hover:text-text-main">
+                    Xem tất cả
+                  </Link>
+                </p>
+              )}
               <p className="mt-2 text-sm text-text-muted">
                 {loading ? 'Đang cập nhật danh mục...' : `${filteredProducts.length} sản phẩm phù hợp`}
               </p>
@@ -178,7 +226,7 @@ export default function ProductList() {
               <div>
                 <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-text-main">Danh mục</h2>
                 <nav className="custom-scrollbar max-h-64 space-y-1 overflow-y-auto pr-1" aria-label="Lọc theo danh mục">
-                  <Link to="/products" className={`flex min-h-10 items-center rounded-md px-3 text-sm transition-colors ${!categoryId ? 'bg-primary/[0.09] text-primary-hover' : 'text-text-muted hover:text-text-main'}`}>
+                  <Link to="/products" className={`flex min-h-10 items-center rounded-md px-3 text-sm transition-colors ${!resolvedCategoryId ? 'bg-primary/[0.09] text-primary-hover' : 'text-text-muted hover:text-text-main'}`}>
                     Tất cả sản phẩm
                   </Link>
                   {categories.map((item) => (
@@ -186,7 +234,7 @@ export default function ProductList() {
                       key={item.id}
                       to={`/category/${item.id}`}
                       className={`flex min-h-10 items-center rounded-md px-3 text-sm transition-colors ${
-                        String(item.id) === String(categoryId) ? 'bg-primary/[0.09] text-primary-hover' : 'text-text-muted hover:text-text-main'
+                        String(item.id) === String(resolvedCategoryId) ? 'bg-primary/[0.09] text-primary-hover' : 'text-text-muted hover:text-text-main'
                       }`}
                     >
                       {item.name}
@@ -207,6 +255,17 @@ export default function ProductList() {
                 <PackageSearch size={34} className="mx-auto mb-4 text-primary" aria-hidden="true" />
                 <h2 className="luxury-heading mb-2 text-lg">Chưa thể tải danh mục</h2>
                 <p className="text-sm text-text-muted">Dữ liệu đang gián đoạn. Vui lòng tải lại trang sau ít phút.</p>
+              </div>
+            ) : activeSeriesId && seriesLinksError ? (
+              <div className="luxury-panel rounded-[10px] px-6 py-16 text-center">
+                <PackageSearch size={34} className="mx-auto mb-4 text-primary" aria-hidden="true" />
+                <h2 className="luxury-heading mb-2 text-lg">Chưa thể lọc theo dòng sản phẩm</h2>
+                <p className="mb-6 text-sm text-text-muted">Bảng liên kết dòng sản phẩm chưa được đồng bộ. Hãy chạy migration SQL mới rồi tải lại trang.</p>
+                {category && (
+                  <Link to={`/category/${category.id}`} className="luxury-primary-button inline-flex min-h-11 items-center rounded-md px-5 text-xs font-bold uppercase tracking-[0.08em]">
+                    Xem toàn bộ {category.name}
+                  </Link>
+                )}
               </div>
             ) : filteredProducts.length > 0 ? (
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-5">
