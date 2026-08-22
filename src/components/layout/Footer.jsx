@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 const shoppingLinks = [
   { label: 'Tất cả sản phẩm', to: '/products' },
+  { label: 'Tự build PC', to: '/build-pc' },
   { label: 'Giỏ hàng', to: '/cart' },
   { label: 'Sản phẩm yêu thích', to: '/wishlist' },
   { label: 'So sánh sản phẩm', to: '/compare' },
