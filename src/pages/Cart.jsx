@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Minus, PackageOpen, Plus, ShieldCheck, Trash2, Truck } from 'lucide-react';
 import { useCommerce } from '../context/CommerceContext';
-import { formatCommercePrice } from '../lib/commerce';
+import { formatCommercePrice, isCommerceProductPurchasable } from '../lib/commerce';
 import { supabase } from '../lib/supabase';
 
 const FREE_SHIPPING_THRESHOLD = 20_000_000;
@@ -29,7 +29,7 @@ export default function Cart() {
 
   const shippingFee = cartSubtotal >= FREE_SHIPPING_THRESHOLD || cart.length === 0 ? 0 : STANDARD_SHIPPING_FEE;
   const total = cartSubtotal + shippingFee;
-  const hasUnavailableProduct = cart.some(({ product }) => product.status === 'inactive' || Number(product.stockQuantity) === 0);
+  const hasUnavailableProduct = cart.some(({ product }) => !isCommerceProductPurchasable(product));
 
   return (
     <>
@@ -54,7 +54,7 @@ export default function Cart() {
           <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px]">
             <div className="space-y-3">
               {cart.map(({ product, quantity }) => {
-                const canPurchase = product.status !== 'inactive' && Number(product.stockQuantity) !== 0;
+                const canPurchase = isCommerceProductPurchasable(product);
                 return (
                   <article key={product.id} className="luxury-panel grid grid-cols-[92px_minmax(0,1fr)] gap-4 rounded-[10px] p-4 sm:grid-cols-[120px_minmax(0,1fr)_auto] sm:items-center">
                     <Link to={`/product/${product.id}`} className="grid h-[92px] place-items-center overflow-hidden rounded-md border border-border-subtle bg-bg-main p-2 sm:h-[110px]">

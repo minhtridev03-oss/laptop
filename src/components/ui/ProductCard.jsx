@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Heart, ImageOff, Scale, ShoppingBag, Sparkles } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
-import { formatCommercePrice } from '../../lib/commerce';
+import { formatCommercePrice, isCommerceProductPurchasable } from '../../lib/commerce';
 
 export default function ProductCard({ product }) {
   const { addToCart, isCompared, isWishlisted, toggleCompare, toggleWishlist } = useCommerce();
@@ -11,7 +11,7 @@ export default function ProductCard({ product }) {
   const hasDiscount = Number(product.discount) > 0;
   const wished = isWishlisted(product.id);
   const compared = isCompared(product.id);
-  const canPurchase = product.status !== 'inactive' && Number(product.stockQuantity) !== 0;
+  const canPurchase = isCommerceProductPurchasable(product);
 
   return (
     <article className="luxury-panel hover-lift group flex h-full flex-col overflow-hidden rounded-[10px] p-3 sm:p-4">

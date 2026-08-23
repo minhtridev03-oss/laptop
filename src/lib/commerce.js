@@ -22,6 +22,15 @@ export const toCommerceProduct = (product = {}) => ({
   status: product.status ?? 'active',
 });
 
+export const isCommerceProductPurchasable = (product = {}) => {
+  if (product.status === 'inactive') return false;
+  const stock = product.stockQuantity ?? product.stock_quantity;
+  // null/undefined means this product is not inventory-managed yet, not out of stock.
+  if (stock === null || stock === undefined || stock === '') return true;
+  const numericStock = Number(stock);
+  return Number.isFinite(numericStock) ? numericStock > 0 : true;
+};
+
 export const formatCommercePrice = (value) => {
   const price = Number(value);
   if (!Number.isFinite(price) || price <= 0) return 'Liên hệ';

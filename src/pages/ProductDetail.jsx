@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useCommerce } from '../context/CommerceContext';
+import { isCommerceProductPurchasable } from '../lib/commerce';
 import './ProductDetail.css';
 
 const SPEC_LABELS = {
@@ -525,7 +526,7 @@ export default function ProductDetail() {
   const price = formatPrice(priceValue);
   const originalPrice = originalPriceValue !== null && priceValue !== null && originalPriceValue > priceValue ? formatPrice(originalPriceValue) : null;
   const saving = originalPriceValue !== null && priceValue !== null && originalPriceValue > priceValue ? formatPrice(originalPriceValue - priceValue) : null;
-  const stockState = getStockState(product.stock ?? product.inventory ?? product.quantity);
+  const stockState = getStockState(product.stock_quantity ?? product.stock ?? product.inventory ?? product.quantity);
   const categoryName = getCategoryName(product, category);
   const productBadges = getProductBadges(product, discount);
   const rating = product.rating ?? product.average_rating;
@@ -534,7 +535,7 @@ export default function ProductDetail() {
   const warranty = product.warranty ?? (isDisplayValue(product.warranty_months) ? `${product.warranty_months} tháng` : null);
   const sku = product.sku ?? product.code ?? product.id;
   const identifierLabel = product.sku ? 'SKU' : product.code ? 'CODE' : 'ID';
-  const canPurchase = stockState?.available !== false;
+  const canPurchase = isCommerceProductPurchasable(product) && stockState?.available !== false;
   const maxQuantity = stockState?.count && stockState.count > 0 ? stockState.count : Number.POSITIVE_INFINITY;
   const seoDescription = createSeoDescription(product, specs, description);
   const primaryImage = images[0];
