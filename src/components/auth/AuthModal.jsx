@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, LoaderCircle, LockKeyhole, LogOut, Mail, ShieldCheck, UserRound, X } from 'lucide-react';
+import { CheckCircle2, Eye, EyeOff, LoaderCircle, LockKeyhole, LogOut, Mail, ShieldCheck, UserPlus, UserRound, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const AUTH_MESSAGES = {
@@ -25,6 +25,8 @@ export default function AuthModal({ open, onClose }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const firstInputRef = useRef(null);
 
   useEffect(() => {
@@ -46,7 +48,10 @@ export default function AuthModal({ open, onClose }) {
 
   useEffect(() => {
     setMessage(null);
-  }, [mode]);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    if (open) window.setTimeout(() => firstInputRef.current?.focus(), 0);
+  }, [mode, open]);
 
   if (!open) return null;
 
@@ -99,27 +104,43 @@ export default function AuthModal({ open, onClose }) {
   };
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Khách hàng';
+  const isRegister = mode === 'register';
+  const HeaderIcon = user ? UserRound : isRegister ? UserPlus : UserRound;
+  const modalTitle = user
+    ? `Xin chào, ${displayName}`
+    : isRegister
+      ? 'Tạo tài khoản Laptop World'
+      : 'Đăng nhập Laptop World';
+  const modalDescription = user
+    ? 'Quản lý phiên đăng nhập của bạn.'
+    : isRegister
+      ? 'Tạo tài khoản để lưu cấu hình, sản phẩm yêu thích và theo dõi đơn hàng thuận tiện hơn.'
+      : 'Đăng nhập để tiếp tục trải nghiệm mua sắm và quản lý thông tin cá nhân.';
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] grid place-items-center overflow-y-auto bg-black/75 px-4 py-8 backdrop-blur-md" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="luxury-panel relative w-full max-w-md overflow-hidden rounded-[14px] border-primary/25" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
-        <button type="button" onClick={onClose} className="luxury-icon-button absolute right-4 top-4 z-10 grid h-10 w-10 place-items-center rounded-lg" aria-label="Đóng cửa sổ tài khoản">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-black/80 p-3 backdrop-blur-md sm:p-6" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className={`luxury-panel relative flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-[14px] border-primary/25 shadow-[0_30px_100px_rgba(0,0,0,0.65)] transition-[max-width] duration-300 sm:max-h-[calc(100dvh-3rem)] ${user || !isRegister ? 'max-w-md' : 'max-w-3xl'}`} role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+        <button type="button" onClick={onClose} className="luxury-icon-button absolute right-3 top-3 z-20 grid h-9 w-9 place-items-center rounded-lg sm:right-5 sm:top-5 sm:h-10 sm:w-10" aria-label="Đóng cửa sổ tài khoản">
           <X size={18} aria-hidden="true" />
         </button>
 
-        <div className="border-b border-border-subtle bg-gradient-to-br from-primary/[0.08] via-transparent to-transparent px-6 pb-5 pt-7 sm:px-8">
-          <div className="mb-5 grid h-12 w-12 place-items-center rounded-xl border border-primary/35 bg-primary/[0.08] text-primary-hover">
-            <UserRound size={23} strokeWidth={1.7} aria-hidden="true" />
+        <div className="shrink-0 border-b border-border-subtle bg-gradient-to-br from-primary/[0.09] via-transparent to-transparent px-5 py-5 sm:px-7 sm:py-6">
+          <div className="flex items-start gap-4 pr-10 sm:pr-12">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-primary/35 bg-primary/[0.08] text-primary-hover sm:h-12 sm:w-12">
+              <HeaderIcon size={22} strokeWidth={1.7} aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="luxury-eyebrow mb-1.5">TÀI KHOẢN KHÁCH HÀNG</p>
+              <h2 id="auth-modal-title" className="luxury-heading text-xl leading-tight sm:text-2xl">{modalTitle}</h2>
+              <p className="mt-2 text-xs leading-5 text-text-muted sm:text-sm sm:leading-6">{modalDescription}</p>
+            </div>
           </div>
-          <p className="luxury-eyebrow mb-2">TÀI KHOẢN KHÁCH HÀNG</p>
-          <h2 id="auth-modal-title" className="luxury-heading pr-12 text-2xl">{user ? `Xin chào, ${displayName}` : 'Đăng nhập Laptop World'}</h2>
-          <p className="mt-2 text-sm leading-6 text-text-muted">{user ? 'Quản lý phiên đăng nhập của bạn.' : 'Lưu thông tin và theo dõi trải nghiệm mua sắm thuận tiện hơn.'}</p>
         </div>
 
         {sessionLoading ? (
           <div className="grid min-h-56 place-items-center text-primary"><LoaderCircle className="animate-spin" aria-label="Đang tải tài khoản" /></div>
         ) : user ? (
-          <div className="p-6 sm:p-8">
+          <div className="custom-scrollbar min-h-0 overflow-y-auto p-5 sm:p-7">
             <div className="mb-6 rounded-lg border border-primary/15 bg-primary/[0.05] p-4">
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-text-main"><CheckCircle2 size={16} className="text-primary-hover" aria-hidden="true" /> Đã đăng nhập</div>
               <p className="break-all text-sm text-text-muted">{user.email}</p>
@@ -130,8 +151,8 @@ export default function AuthModal({ open, onClose }) {
             </button>
           </div>
         ) : (
-          <div className="p-6 sm:p-8">
-            <div className="mb-6 grid grid-cols-2 rounded-lg border border-border-subtle bg-bg-main p-1" role="tablist" aria-label="Chọn hình thức tài khoản">
+          <div className="custom-scrollbar min-h-0 overflow-y-auto p-5 sm:p-7">
+            <div className="mb-5 grid grid-cols-2 rounded-lg border border-border-subtle bg-bg-main p-1" role="tablist" aria-label="Chọn hình thức tài khoản">
               {[
                 { id: 'login', label: 'Đăng nhập' },
                 { id: 'register', label: 'Đăng ký' },
@@ -142,8 +163,8 @@ export default function AuthModal({ open, onClose }) {
               ))}
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {mode === 'register' && (
+            <form onSubmit={handleSubmit} className={`grid gap-4 ${isRegister ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+              {isRegister && (
                 <label className="block text-xs font-semibold text-text-muted">
                   Họ và tên
                   <span className="relative mt-2 block">
@@ -163,28 +184,34 @@ export default function AuthModal({ open, onClose }) {
                 Mật khẩu
                 <span className="relative mt-2 block">
                   <LockKeyhole size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/70" aria-hidden="true" />
-                  <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={6} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className="luxury-search min-h-12 w-full rounded-md pl-10 pr-3 text-sm text-text-main outline-none" placeholder="Tối thiểu 6 ký tự" />
+                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} required minLength={6} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className="luxury-search min-h-12 w-full rounded-md pl-10 pr-11 text-sm text-text-main outline-none" placeholder="Tối thiểu 6 ký tự" />
+                  <button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-text-muted transition-colors hover:bg-primary/10 hover:text-primary-hover" aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}>
+                    {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                  </button>
                 </span>
               </label>
-              {mode === 'register' && (
+              {isRegister && (
                 <label className="block text-xs font-semibold text-text-muted">
                   Nhập lại mật khẩu
                   <span className="relative mt-2 block">
                     <ShieldCheck size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/70" aria-hidden="true" />
-                    <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required minLength={6} autoComplete="new-password" className="luxury-search min-h-12 w-full rounded-md pl-10 pr-3 text-sm text-text-main outline-none" placeholder="Nhập lại mật khẩu" />
+                    <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required minLength={6} autoComplete="new-password" className="luxury-search min-h-12 w-full rounded-md pl-10 pr-11 text-sm text-text-main outline-none" placeholder="Nhập lại mật khẩu" />
+                    <button type="button" onClick={() => setShowConfirmPassword((current) => !current)} className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-text-muted transition-colors hover:bg-primary/10 hover:text-primary-hover" aria-label={showConfirmPassword ? 'Ẩn mật khẩu nhập lại' : 'Hiện mật khẩu nhập lại'}>
+                      {showConfirmPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                    </button>
                   </span>
                 </label>
               )}
 
-              {message && <p className={`rounded-md border px-4 py-3 text-sm ${message.tone === 'success' ? 'border-[#79b88d]/25 bg-[#79b88d]/[0.08] text-[#9ed1ad]' : 'border-[#d56f66]/25 bg-[#d56f66]/[0.08] text-[#e7958d]'}`} role="alert">{message.text}</p>}
+              {message && <p className={`rounded-md border px-4 py-3 text-sm ${isRegister ? 'sm:col-span-2' : ''} ${message.tone === 'success' ? 'border-[#79b88d]/25 bg-[#79b88d]/[0.08] text-[#9ed1ad]' : 'border-[#d56f66]/25 bg-[#d56f66]/[0.08] text-[#e7958d]'}`} role="alert">{message.text}</p>}
 
-              <button type="submit" disabled={submitting} className="luxury-primary-button flex min-h-12 w-full items-center justify-center gap-2 rounded-md text-xs font-bold uppercase tracking-[0.1em] disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="submit" disabled={submitting} className={`luxury-primary-button flex min-h-12 w-full items-center justify-center gap-2 rounded-md text-xs font-bold uppercase tracking-[0.1em] disabled:cursor-not-allowed disabled:opacity-60 ${isRegister ? 'sm:col-span-2' : ''}`}>
                 {submitting && <LoaderCircle size={17} className="animate-spin" aria-hidden="true" />}
                 {mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}
               </button>
             </form>
 
-            <p className="mt-5 flex items-start gap-2 text-[11px] leading-5 text-text-muted"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-primary/70" aria-hidden="true" /> Mật khẩu được Supabase Auth xử lý bảo mật và không được lưu trong giao diện website.</p>
+            <p className="mt-4 flex items-start gap-2 border-t border-border-subtle pt-4 text-[11px] leading-5 text-text-muted"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-primary/70" aria-hidden="true" /> Mật khẩu được Supabase Auth xử lý bảo mật và không được lưu trong giao diện website.</p>
           </div>
         )}
       </section>
