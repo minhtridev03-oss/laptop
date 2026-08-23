@@ -18,6 +18,7 @@ import {
   MonitorCog,
   PackagePlus,
   RotateCcw,
+  Save,
   Search,
   ShieldCheck,
   ShoppingCart,
@@ -29,6 +30,8 @@ import {
 import { supabase } from '../lib/supabase';
 import { formatCommercePrice, toCommerceProduct } from '../lib/commerce';
 import { useCommerce } from '../context/CommerceContext';
+import { useAuth } from '../context/AuthContext';
+import { savePcBuild } from '../services/pcBuildService';
 import {
   createRecommendedBuild,
   DEFAULT_BUILD_PROFILES,
@@ -167,6 +170,7 @@ function PartPicker({ catalog, onClose, onSelect, openSlot, selections }) {
 export default function PcBuilder() {
   const navigate = useNavigate();
   const { addToCart } = useCommerce();
+  const { user } = useAuth();
   const [catalog, setCatalog] = useState([]);
   const [selectedIds, setSelectedIds] = useState({});
   const [openSlot, setOpenSlot] = useState(null);
@@ -179,6 +183,7 @@ export default function PcBuilder() {
   const [activeProfileId, setActiveProfileId] = useState('balanced');
   const [budgetMillions, setBudgetMillions] = useState(37);
   const [appliedRecommendation, setAppliedRecommendation] = useState(null);
+  const [saveState, setSaveState] = useState({ loading: false, message: '' });
 
   useEffect(() => {
     let ignore = false;
@@ -302,13 +307,34 @@ export default function PcBuilder() {
     navigate('/cart');
   };
 
+  const saveBuild = async () => {
+    if (!user) {
+      setSaveState({ loading: false, message: 'Vui lòng đăng nhập để lưu cấu hình vào tài khoản.' });
+      return;
+    }
+    setSaveState({ loading: true, message: '' });
+    try {
+      await savePcBuild({
+        name: `${activeProfile?.name || 'Cấu hình tự chọn'} · ${new Date().toLocaleDateString('vi-VN')}`,
+        profileId: activeProfile?.id,
+        selectedProductIds: selectedIds,
+        total,
+        userId: user.id,
+      });
+      setSaveState({ loading: false, message: 'Đã lưu cấu hình vào tài khoản.' });
+    } catch (saveError) {
+      console.error('PC build save failed:', saveError);
+      setSaveState({ loading: false, message: 'Chưa thể lưu cấu hình. Hãy kiểm tra migration mới.' });
+    }
+  };
+
   return (
     <>
       <Helmet><title>Build PC theo nhu cầu | Laptop World</title><meta name="description" content="Tự chọn linh kiện, kiểm tra tương thích và dự toán cấu hình PC tại Laptop World." /></Helmet>
       <section className="luxury-page-section mx-auto min-h-[75vh] w-full max-w-[1440px] px-4 py-9 lg:px-6 lg:py-12">
         <div className="mb-8 grid gap-5 border-b border-border-subtle pb-7 lg:grid-cols-[1fr_auto] lg:items-end">
           <div><p className="luxury-eyebrow mb-3">PC CONFIGURATOR</p><h1 className="luxury-heading text-3xl sm:text-4xl">Tự build PC của bạn</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-text-muted">Chọn từng linh kiện, hệ thống tự kiểm tra tương thích và dự toán công suất trước khi thêm toàn bộ cấu hình vào giỏ hàng.</p></div>
-          <div className="flex flex-wrap gap-2"><button type="button" onClick={copyBuild} disabled={selectedProducts.length === 0} className="flex min-h-11 items-center gap-2 rounded-md border border-border-subtle bg-bg-card px-4 text-xs font-bold uppercase tracking-[0.06em] text-text-main hover:border-primary/40 hover:text-primary-hover disabled:opacity-40">{copied ? <Check size={16} className="text-[#9ed1ad]" aria-hidden="true" /> : <Copy size={16} className="text-primary" aria-hidden="true" />}{copied ? 'Đã sao chép' : 'Chia sẻ cấu hình'}</button><button type="button" onClick={() => { setSelectedIds({}); setAppliedRecommendation(null); }} disabled={selectedProducts.length === 0} className="flex min-h-11 items-center gap-2 rounded-md border border-border-subtle bg-bg-card px-4 text-xs font-bold uppercase tracking-[0.06em] text-text-main hover:border-primary/40 hover:text-primary-hover disabled:opacity-40"><RotateCcw size={16} className="text-primary" aria-hidden="true" /> Làm mới</button></div>
+          <div><div className="flex flex-wrap gap-2"><button type="button" onClick={saveBuild} disabled={selectedProducts.length === 0 || saveState.loading} className="flex min-h-11 items-center gap-2 rounded-md border border-primary/30 bg-primary/[0.06] px-4 text-xs font-bold uppercase tracking-[0.06em] text-primary-hover disabled:opacity-40">{saveState.loading ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />} Lưu cấu hình</button><button type="button" onClick={copyBuild} disabled={selectedProducts.length === 0} className="flex min-h-11 items-center gap-2 rounded-md border border-border-subtle bg-bg-card px-4 text-xs font-bold uppercase tracking-[0.06em] text-text-main hover:border-primary/40 hover:text-primary-hover disabled:opacity-40">{copied ? <Check size={16} className="text-[#9ed1ad]" aria-hidden="true" /> : <Copy size={16} className="text-primary" aria-hidden="true" />}{copied ? 'Đã sao chép' : 'Chia sẻ cấu hình'}</button><button type="button" onClick={() => { setSelectedIds({}); setAppliedRecommendation(null); setSaveState({ loading: false, message: '' }); }} disabled={selectedProducts.length === 0} className="flex min-h-11 items-center gap-2 rounded-md border border-border-subtle bg-bg-card px-4 text-xs font-bold uppercase tracking-[0.06em] text-text-main hover:border-primary/40 hover:text-primary-hover disabled:opacity-40"><RotateCcw size={16} className="text-primary" aria-hidden="true" /> Làm mới</button></div>{saveState.message && <p className="mt-2 text-right text-[10px] text-primary-hover">{saveState.message}</p>}</div>
         </div>
 
         <div className="luxury-panel mb-7 rounded-[10px] p-5 lg:p-6">
