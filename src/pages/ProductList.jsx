@@ -22,24 +22,34 @@ const sortOptions = [
   { id: 'price-desc', label: 'Giá cao đến thấp' },
 ];
 
-const formatProductForCard = (product) => ({
-  id: product.id,
-  name: product.name,
-  price: product.price,
-  originalPrice: product.original_price,
-  discount: product.discount,
-  category: product.category_id,
-  image: product.image_url,
-  specs: {
+const formatProductForCard = (product) => {
+  const legacySpecs = {
     cpu: product.spec_cpu,
     ram: product.spec_ram,
     storage: product.spec_storage,
     gpu: product.spec_gpu,
-  },
-  isHot: product.is_hot,
-  stockQuantity: product.stock_quantity,
-  status: product.status,
-});
+  };
+  const highlights = Array.isArray(product.specifications?.card_highlights)
+    ? product.specifications.card_highlights.filter(Boolean).slice(0, 3)
+    : [];
+  const specs = Object.values(legacySpecs).some(Boolean)
+    ? legacySpecs
+    : Object.fromEntries(highlights.map((value, index) => [`highlight_${index + 1}`, value]));
+
+  return {
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    originalPrice: product.original_price,
+    discount: product.discount,
+    category: product.category_id,
+    image: product.image_url,
+    specs,
+    isHot: product.is_hot,
+    stockQuantity: product.stock_quantity,
+    status: product.status,
+  };
+};
 
 export default function ProductList() {
   const { categoryId } = useParams();

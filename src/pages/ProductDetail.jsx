@@ -40,7 +40,7 @@ const SPEC_LABELS = {
   mainboard: 'Bo mạch chủ', chipset: 'Chipset', socket: 'Socket', psu: 'Nguồn',
   power: 'Công suất', cooling: 'Tản nhiệt', interface: 'Chuẩn kết nối',
   connectivity: 'Kết nối', ports: 'Cổng kết nối', color: 'Màu sắc', weight: 'Khối lượng',
-  dimensions: 'Kích thước', os: 'Hệ điều hành',
+  dimensions: 'Kích thước', os: 'Hệ điều hành', warranty: 'Bảo hành', category_path: 'Nhóm sản phẩm',
 };
 
 const SPEC_ORDER = [
@@ -145,7 +145,8 @@ const normalizePromotions = (product) => {
 };
 
 const normalizeDescription = (product) => {
-  const raw = product?.description ?? product?.long_description ?? product?.short_description;
+  const structured = parseJsonValue(product?.specifications);
+  const raw = product?.description ?? product?.long_description ?? product?.short_description ?? structured?.description;
   const parsed = parseJsonValue(raw);
   if (!isDisplayValue(parsed)) return [];
   if (Array.isArray(parsed)) return parsed.map(normalizeTextValue).filter(Boolean);
@@ -188,6 +189,15 @@ const normalizeSpecs = (product) => {
   const groupedSpecs = parseJsonValue(product.specs);
   if (groupedSpecs && typeof groupedSpecs === 'object' && !Array.isArray(groupedSpecs)) {
     Object.entries(groupedSpecs).forEach(([key, value]) => addSpec(key, humanizeKey(key), value));
+  }
+
+  const structuredSpecs = parseJsonValue(product.specifications);
+  const hiddenStructuredKeys = new Set(['builder_tier', 'card_highlights', 'component_type', 'description', 'performance_score', 'sample_data']);
+  const legacySpecAliases = { processor: 'spec_cpu', memory: 'spec_ram', storage: 'spec_storage', graphics: 'spec_gpu' };
+  if (structuredSpecs && typeof structuredSpecs === 'object' && !Array.isArray(structuredSpecs)) {
+    Object.entries(structuredSpecs)
+      .filter(([key]) => !hiddenStructuredKeys.has(key) && !isDisplayValue(product[legacySpecAliases[key]]))
+      .forEach(([key, value]) => addSpec(key, humanizeKey(key), value));
   }
 
   Object.entries(product).filter(([key]) => key.startsWith('spec_'))
