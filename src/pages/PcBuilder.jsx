@@ -30,11 +30,14 @@ import { supabase } from '../lib/supabase';
 import { formatCommercePrice, toCommerceProduct } from '../lib/commerce';
 import { useCommerce } from '../context/CommerceContext';
 import {
-  BUILDER_PRESETS,
+  createRecommendedBuild,
+  DEFAULT_BUILD_PROFILES,
   getBuilderSpec,
   getCandidateConflict,
   getCompatibilityIssues,
   getPartHighlights,
+  isBuilderProductAvailable,
+  normalizeBuildProfile,
   PC_BUILD_SLOTS,
   PC_BUILD_STORAGE_KEY,
   recommendedPsuWattage,
@@ -171,26 +174,56 @@ export default function PcBuilder() {
   const [error, setError] = useState(null);
   const [hydrated, setHydrated] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [profiles, setProfiles] = useState(DEFAULT_BUILD_PROFILES);
+  const [profileSource, setProfileSource] = useState('fallback');
+  const [activeProfileId, setActiveProfileId] = useState('balanced');
+  const [budgetMillions, setBudgetMillions] = useState(37);
+  const [appliedRecommendation, setAppliedRecommendation] = useState(null);
 
   useEffect(() => {
     let ignore = false;
-    supabase
-      .from('products')
-      .select('*')
-      .eq('category_id', 'linh-kien')
-      .eq('status', 'active')
-      .order('sort_order', { ascending: true })
-      .then(({ data, error: fetchError }) => {
-        if (ignore) return;
-        if (fetchError) setError(fetchError);
-        const builderProducts = (data ?? []).filter((product) => product.specifications?.component_type);
-        setCatalog(builderProducts);
-        const availableIds = new Set(builderProducts.map((product) => product.id));
-        const saved = readSavedBuild();
-        setSelectedIds(Object.fromEntries(Object.entries(saved).filter(([, id]) => availableIds.has(id))));
-        setHydrated(true);
+    const loadBuilderData = async () => {
+      const [productsResult, profilesResult] = await Promise.all([
+        supabase
+          .from('products')
+          .select('*')
+          .eq('category_id', 'linh-kien')
+          .eq('status', 'active')
+          .order('sort_order', { ascending: true }),
+        supabase
+          .from('pc_build_profiles')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true }),
+      ]);
+
+      if (ignore) return;
+      if (productsResult.error) setError(productsResult.error);
+      const builderProducts = (productsResult.data ?? []).filter(isBuilderProductAvailable);
+      setCatalog(builderProducts);
+
+      if (!profilesResult.error && profilesResult.data?.length) {
+        const liveProfiles = profilesResult.data.map(normalizeBuildProfile);
+        setProfiles(liveProfiles);
+        setProfileSource('database');
+        const preferred = liveProfiles.find((profile) => profile.id === 'balanced') || liveProfiles[0];
+        setActiveProfileId(preferred.id);
+        setBudgetMillions(Math.round(preferred.default_budget / 1000000));
+      }
+
+      const availableIds = new Set(builderProducts.map((product) => product.id));
+      const saved = readSavedBuild();
+      setSelectedIds(Object.fromEntries(Object.entries(saved).filter(([, id]) => availableIds.has(id))));
+      setHydrated(true);
+      setLoading(false);
+    };
+
+    loadBuilderData().catch((fetchError) => {
+      if (!ignore) {
+        setError(fetchError);
         setLoading(false);
-      });
+      }
+    });
     return () => { ignore = true; };
   }, []);
 
@@ -210,30 +243,47 @@ export default function PcBuilder() {
   const isReady = selectedRequired === requiredCount && errors.length === 0;
   const estimatedPower = estimateSystemPower(selections);
   const recommendedPower = recommendedPsuWattage(selections);
+  const profileRecommendations = useMemo(() => profiles.map((profile) => ({
+    profile,
+    recommendation: createRecommendedBuild(catalog, profile, profile.default_budget),
+  })), [catalog, profiles]);
+  const activeProfile = profiles.find((profile) => profile.id === activeProfileId) || profiles[0];
+  const customRecommendation = useMemo(
+    () => createRecommendedBuild(catalog, activeProfile || DEFAULT_BUILD_PROFILES[1], Number(budgetMillions) * 1000000),
+    [activeProfile, budgetMillions, catalog],
+  );
 
   const selectPart = (slotId, product) => {
     setSelectedIds((current) => ({ ...current, [slotId]: product.id }));
+    setAppliedRecommendation(null);
     setOpenSlot(null);
   };
 
-  const removePart = (slotId) => setSelectedIds((current) => {
-    const next = { ...current };
-    delete next[slotId];
-    return next;
-  });
-
-  const applyPreset = (tier) => {
-    const next = {};
-    PC_BUILD_SLOTS.forEach((slot) => {
-      const product = catalog.find((item) => item.specifications?.component_type === slot.id && item.specifications?.builder_tier === tier);
-      if (product) next[slot.id] = product.id;
+  const removePart = (slotId) => {
+    setAppliedRecommendation(null);
+    setSelectedIds((current) => {
+      const next = { ...current };
+      delete next[slotId];
+      return next;
     });
-    setSelectedIds(next);
   };
 
-  const presetTotal = (tier) => catalog
-    .filter((product) => product.specifications?.builder_tier === tier)
-    .reduce((sum, product) => sum + Number(product.price || 0), 0);
+  const applyRecommendation = (recommendation) => {
+    setSelectedIds(recommendation.selectedIds);
+    setAppliedRecommendation({
+      profileId: recommendation.profile.id,
+      profileName: recommendation.profile.name,
+      targetBudget: recommendation.targetBudget,
+      total: recommendation.total,
+      withinBudget: recommendation.withinBudget,
+    });
+  };
+
+  const chooseProfile = (profile, recommendation) => {
+    setActiveProfileId(profile.id);
+    setBudgetMillions(Math.round(profile.default_budget / 1000000));
+    applyRecommendation(recommendation);
+  };
 
   const copyBuild = async () => {
     const url = new URL(window.location.href);
@@ -258,20 +308,39 @@ export default function PcBuilder() {
       <section className="luxury-page-section mx-auto min-h-[75vh] w-full max-w-[1440px] px-4 py-9 lg:px-6 lg:py-12">
         <div className="mb-8 grid gap-5 border-b border-border-subtle pb-7 lg:grid-cols-[1fr_auto] lg:items-end">
           <div><p className="luxury-eyebrow mb-3">PC CONFIGURATOR</p><h1 className="luxury-heading text-3xl sm:text-4xl">Tự build PC của bạn</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-text-muted">Chọn từng linh kiện, hệ thống tự kiểm tra tương thích và dự toán công suất trước khi thêm toàn bộ cấu hình vào giỏ hàng.</p></div>
-          <div className="flex flex-wrap gap-2"><button type="button" onClick={copyBuild} disabled={selectedProducts.length === 0} className="flex min-h-11 items-center gap-2 rounded-md border border-border-subtle bg-bg-card px-4 text-xs font-bold uppercase tracking-[0.06em] text-text-main hover:border-primary/40 hover:text-primary-hover disabled:opacity-40">{copied ? <Check size={16} className="text-[#9ed1ad]" aria-hidden="true" /> : <Copy size={16} className="text-primary" aria-hidden="true" />}{copied ? 'Đã sao chép' : 'Chia sẻ cấu hình'}</button><button type="button" onClick={() => setSelectedIds({})} disabled={selectedProducts.length === 0} className="flex min-h-11 items-center gap-2 rounded-md border border-border-subtle bg-bg-card px-4 text-xs font-bold uppercase tracking-[0.06em] text-text-main hover:border-primary/40 hover:text-primary-hover disabled:opacity-40"><RotateCcw size={16} className="text-primary" aria-hidden="true" /> Làm mới</button></div>
+          <div className="flex flex-wrap gap-2"><button type="button" onClick={copyBuild} disabled={selectedProducts.length === 0} className="flex min-h-11 items-center gap-2 rounded-md border border-border-subtle bg-bg-card px-4 text-xs font-bold uppercase tracking-[0.06em] text-text-main hover:border-primary/40 hover:text-primary-hover disabled:opacity-40">{copied ? <Check size={16} className="text-[#9ed1ad]" aria-hidden="true" /> : <Copy size={16} className="text-primary" aria-hidden="true" />}{copied ? 'Đã sao chép' : 'Chia sẻ cấu hình'}</button><button type="button" onClick={() => { setSelectedIds({}); setAppliedRecommendation(null); }} disabled={selectedProducts.length === 0} className="flex min-h-11 items-center gap-2 rounded-md border border-border-subtle bg-bg-card px-4 text-xs font-bold uppercase tracking-[0.06em] text-text-main hover:border-primary/40 hover:text-primary-hover disabled:opacity-40"><RotateCcw size={16} className="text-primary" aria-hidden="true" /> Làm mới</button></div>
         </div>
 
         <div className="luxury-panel mb-7 rounded-[10px] p-5 lg:p-6">
-          <div className="mb-5"><p className="luxury-eyebrow mb-2">CẤU HÌNH GỢI Ý</p><h2 className="luxury-heading text-lg">Chọn nhanh theo phân khúc</h2></div>
+          <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+            <div><p className="luxury-eyebrow mb-2">CẤU HÌNH GỢI Ý</p><h2 className="luxury-heading text-lg">Gợi ý từ dữ liệu sản phẩm hiện tại</h2></div>
+            <p className="max-w-lg text-xs leading-5 text-text-muted">Hệ thống chấm theo giá, hiệu năng, tồn kho và độ tương thích — không phải đánh giá ngẫu nhiên hay nội dung do AI tự viết.</p>
+          </div>
           <div className="grid gap-3 md:grid-cols-3">
-            {BUILDER_PRESETS.map((preset) => (
-              <button key={preset.id} type="button" onClick={() => applyPreset(preset.id)} disabled={!catalog.some((product) => product.specifications?.builder_tier === preset.id)} className="group rounded-lg border border-border-subtle bg-bg-main/60 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/45 disabled:opacity-45">
-                <span className="flex items-center justify-between"><span className="font-['Sora'] text-sm font-bold text-text-main group-hover:text-primary-hover">{preset.label}</span><Sparkles size={16} className="text-primary" aria-hidden="true" /></span>
-                <span className="mt-2 block text-xs leading-5 text-text-muted">{preset.description}</span>
-                <span className="mt-3 block font-['JetBrains_Mono'] text-xs font-bold text-primary-hover">{presetTotal(preset.id) ? formatCommercePrice(presetTotal(preset.id)) : 'Chờ dữ liệu'}</span>
+            {profileRecommendations.map(({ profile, recommendation }) => (
+              <button key={profile.id} type="button" aria-pressed={activeProfileId === profile.id} onClick={() => chooseProfile(profile, recommendation)} disabled={!recommendation.ready} className={`group rounded-lg border p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/45 disabled:cursor-not-allowed disabled:opacity-45 ${activeProfileId === profile.id ? 'border-primary/45 bg-primary/[0.08]' : 'border-border-subtle bg-bg-main/60'}`}>
+                <span className="flex items-center justify-between"><span className="font-['Sora'] text-sm font-bold text-text-main group-hover:text-primary-hover">{profile.name}</span><Sparkles size={16} className="text-primary" aria-hidden="true" /></span>
+                <span className="mt-2 block text-xs leading-5 text-text-muted">{profile.description}</span>
+                <span className="mt-3 flex items-end justify-between gap-3"><span className="font-['JetBrains_Mono'] text-xs font-bold text-primary-hover">{recommendation.total ? formatCommercePrice(recommendation.total) : 'Chờ dữ liệu'}</span><span className="text-[10px] uppercase tracking-[0.08em] text-text-muted">{profile.target_resolution}</span></span>
+                <span className="mt-1 block text-[10px] text-text-muted">Ngân sách {formatCommercePrice(profile.budget_min)} – {formatCommercePrice(profile.budget_max)}</span>
               </button>
             ))}
           </div>
+          <div className="mt-4 grid gap-4 rounded-lg border border-primary/15 bg-bg-main/55 p-4 lg:grid-cols-[minmax(0,1fr)_220px_auto] lg:items-end">
+            <div>
+              <p className="font-['Sora'] text-sm font-semibold text-text-main">Tùy chỉnh ngân sách cho {activeProfile?.name || 'cấu hình'}</p>
+              <p className="mt-1 text-xs leading-5 text-text-muted">Bộ máy sẽ tự chọn lại linh kiện đang còn hàng và giữ các ràng buộc tương thích.</p>
+            </div>
+            <label className="block">
+              <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.08em] text-text-muted">Ngân sách (triệu đồng)</span>
+              <span className="flex min-h-11 items-center rounded-md border border-border-subtle bg-bg-card px-3 focus-within:border-primary/45">
+                <input type="number" min="10" max="200" step="1" value={budgetMillions} onChange={(event) => setBudgetMillions(event.target.value)} onBlur={() => { if (!Number(budgetMillions)) setBudgetMillions(Math.round((activeProfile?.default_budget || 37000000) / 1000000)); }} className="min-w-0 flex-1 bg-transparent font-['JetBrains_Mono'] text-sm font-bold text-text-main outline-none" aria-label="Ngân sách build PC theo triệu đồng" />
+                <span className="text-xs text-text-muted">triệu</span>
+              </span>
+            </label>
+            <button type="button" onClick={() => applyRecommendation(customRecommendation)} disabled={!customRecommendation.ready || !Number(budgetMillions)} className="luxury-primary-button flex min-h-11 items-center justify-center gap-2 rounded-md px-5 text-xs font-bold uppercase tracking-[0.06em] disabled:cursor-not-allowed disabled:opacity-40"><Sparkles size={15} aria-hidden="true" /> Tạo cấu hình</button>
+          </div>
+          <p className="mt-3 text-[10px] leading-5 text-text-muted">Hồ sơ gợi ý: {profileSource === 'database' ? 'đang lấy từ Supabase để quản trị và cập nhật' : 'đang dùng cấu hình dự phòng trong ứng dụng; chạy migration mới để quản trị từ Supabase'}.</p>
         </div>
 
         <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -298,6 +367,12 @@ export default function PcBuilder() {
 
           <aside className="luxury-panel rounded-[10px] p-5 lg:sticky lg:top-40 lg:p-6" aria-label="Tóm tắt cấu hình">
             <p className="luxury-eyebrow mb-2">TÓM TẮT BUILD</p><h2 className="luxury-heading text-xl">Cấu hình của bạn</h2>
+            {appliedRecommendation && (
+              <div className="mt-4 rounded-lg border border-primary/20 bg-primary/[0.06] p-3">
+                <p className="flex items-center gap-2 text-xs font-semibold text-primary-hover"><Sparkles size={14} aria-hidden="true" /> Gợi ý {appliedRecommendation.profileName}</p>
+                <p className="mt-1 text-[10px] leading-5 text-text-muted">Mục tiêu {formatCommercePrice(appliedRecommendation.targetBudget)} · Tổng đã chọn {formatCommercePrice(appliedRecommendation.total)}{appliedRecommendation.withinBudget ? ' · Trong ngân sách' : ' · Vượt ngân sách do không còn lựa chọn tương thích rẻ hơn'}</p>
+              </div>
+            )}
             <div className="my-5 grid grid-cols-3 gap-2">
               <div className="rounded-lg border border-border-subtle bg-bg-main/60 p-3 text-center"><p className="font-['JetBrains_Mono'] text-lg font-bold text-primary-hover">{selectedProducts.length}/8</p><p className="mt-1 text-[9px] uppercase tracking-[0.06em] text-text-muted">Linh kiện</p></div>
               <div className="rounded-lg border border-border-subtle bg-bg-main/60 p-3 text-center"><p className="font-['JetBrains_Mono'] text-lg font-bold text-primary-hover">{estimatedPower || 0}W</p><p className="mt-1 text-[9px] uppercase tracking-[0.06em] text-text-muted">Ước tính</p></div>
