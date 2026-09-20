@@ -48,7 +48,7 @@ export default function AccountOrders({ orders }) {
                 >
                   {STATUS_LABELS[order.status] || order.status}
                 </span>
-                <p className="mt-2 font-['Sora'] text-lg font-bold text-text-main">
+                <p className="mt-2 font-['Be_Vietnam_Pro'] text-lg font-bold text-text-main">
                   {formatCommercePrice(order.total)}
                 </p>
               </div>

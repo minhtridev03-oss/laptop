@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Sora:wght@600;700;800&display=swap');
+/* Google Fonts duoc tai khong dong bo trong index.html de tranh block render */
+/* @import da duoc chuyen sang <link media="print" onload> trong index.html */
+
 @import "tailwindcss";
 
 @theme {
@@ -31,7 +33,7 @@
   h1,
   h2,
   h3 {
-    font-family: 'Sora', 'Inter', system-ui, sans-serif;
+    font-family: 'Be Vietnam Pro', 'Inter', system-ui, sans-serif;
   }
 
   ::selection {
@@ -71,6 +73,25 @@
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: var(--color-border-subtle);
+  }
+}
+
+/* Scroll Animation Utilities — CSS-native, no JS overhead */
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.reveal-up {
+  animation: revealUp 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-timeline: view();
+  animation-range: entry 0% entry 30%;
+}
+
+/* Fallback for browsers not supporting animation-timeline */
+@supports not (animation-timeline: view()) {
+  .reveal-up {
+    animation: revealUp 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) 0.05s both;
   }
 }
 
@@ -152,7 +173,7 @@
 
   .luxury-heading {
     color: #f6f2e8;
-    font-family: 'Sora', 'Inter', sans-serif;
+    font-family: 'Be Vietnam Pro', 'Inter', sans-serif;
     font-weight: 700;
     letter-spacing: -0.025em;
   }
@@ -251,6 +272,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .reveal-up { animation: none; }
   .hover-lift,
   .luxury-primary-button,
   .luxury-icon-button { transition-duration: 0.01ms !important; }

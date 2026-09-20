@@ -11,11 +11,15 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
+    "framer-motion": "^13.4.0",
+    "i18next": "^26.4.2",
     "lucide-react": "^1.32.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-helmet-async": "^3.0.0",
-    "react-router-dom": "^7.18.2"
+    "react-i18next": "^17.0.14",
+    "react-router-dom": "^7.18.2",
+    "sonner": "^2.0.8"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.37.1",

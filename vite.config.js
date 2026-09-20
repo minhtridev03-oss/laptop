@@ -24,4 +24,31 @@ export default defineConfig({
       },
     })
   ],
+  build: {
+    target: 'esnext',
+    minify: 'esbuild',
+    cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        // Tách các thư viện lớn thành chunk riêng để browser cache được lâu dài
+        manualChunks: (id) => {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+            return 'react-vendor';
+          }
+          if (id.includes('node_modules/framer-motion')) {
+            return 'motion';
+          }
+          if (id.includes('node_modules/@supabase')) {
+            return 'supabase';
+          }
+          if (id.includes('node_modules/lucide-react')) {
+            return 'icons';
+          }
+          if (id.includes('node_modules/i18next') || id.includes('node_modules/react-i18next')) {
+            return 'i18n';
+          }
+        },
+      },
+    },
+  },
 })

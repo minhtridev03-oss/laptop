@@ -232,7 +232,7 @@ export default function AccountAddresses({ addresses, onChanged }) {
                 </span>
               )}
             </div>
-            <h3 className="mt-4 font-['Sora'] text-sm font-bold text-text-main">
+            <h3 className="mt-4 font-['Be_Vietnam_Pro'] text-sm font-bold text-text-main">
               {address.label}
             </h3>
             <p className="mt-2 text-sm text-text-main">

@@ -123,7 +123,7 @@ export default function ProductReviews({ productId }) {
           </h2>
         </div>
         <div className="flex items-center gap-3">
-          <strong className="font-['Sora'] text-2xl text-primary-hover">
+          <strong className="font-['Be_Vietnam_Pro'] text-2xl text-primary-hover">
             {reviewState.published.length
               ? reviewState.average.toFixed(1)
               : "—"}
@@ -202,7 +202,7 @@ export default function ProductReviews({ productId }) {
           onSubmit={submit}
           className="h-fit rounded-lg border border-primary/20 bg-primary/[0.04] p-4 sm:p-5"
         >
-          <h3 className="font-['Sora'] text-sm font-bold text-text-main">
+          <h3 className="font-['Be_Vietnam_Pro'] text-sm font-bold text-text-main">
             {ownReview ? "Cập nhật đánh giá" : "Viết đánh giá"}
           </h3>
           {!user ? (

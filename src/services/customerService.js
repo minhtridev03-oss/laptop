@@ -94,8 +94,8 @@ export async function syncCustomerWishlist(wishlist) {
 
 export async function loadCustomerAccount(userId) {
   if (!userId)
-    return { profile: null, addresses: [], orders: [], savedBuilds: [] };
-  const [profileResult, addressesResult, ordersResult, savedBuildsResult] =
+    return { profile: null, addresses: [], orders: [], savedBuilds: [], warranties: [] };
+  const [profileResult, addressesResult, ordersResult, savedBuildsResult, warrantiesResult] =
     await Promise.all([
       supabase
         .from("customer_profiles")
@@ -120,12 +120,18 @@ export async function loadCustomerAccount(userId) {
         .select("*")
         .eq("user_id", userId)
         .order("updated_at", { ascending: false }),
+      supabase
+        .from("warranties")
+        .select("*, warranty_claims(*)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
     ]);
   return {
     profile: unwrap(profileResult),
     addresses: unwrap(addressesResult) ?? [],
     orders: unwrap(ordersResult) ?? [],
     savedBuilds: unwrap(savedBuildsResult) ?? [],
+    warranties: unwrap(warrantiesResult) ?? [],
   };
 }
 

@@ -8,6 +8,8 @@ import {
   syncCustomerCart,
   syncCustomerWishlist,
 } from '../services/customerService';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 const CommerceContext = createContext(null);
 const STORAGE_KEYS = {
@@ -36,16 +38,15 @@ const writeStorage = (key, value) => {
 };
 
 export function CommerceProvider({ children }) {
+  const { t } = useTranslation();
   const { loading: authLoading, user } = useAuth();
   const [cart, setCart] = useState(() => readStorage(STORAGE_KEYS.cart));
   const [wishlist, setWishlist] = useState(() => readStorage(STORAGE_KEYS.wishlist));
   const [compare, setCompare] = useState(() => readStorage(STORAGE_KEYS.compare));
   const [recentlyViewed, setRecentlyViewed] = useState(() => readStorage(STORAGE_KEYS.recent));
-  const [notification, setNotification] = useState(null);
   const [commerceSyncing, setCommerceSyncing] = useState(false);
   const [commerceSyncError, setCommerceSyncError] = useState(null);
   const [remoteSyncUserId, setRemoteSyncUserId] = useState(null);
-  const noticeTimer = useRef(null);
   const cartSyncTimer = useRef(null);
   const wishlistSyncTimer = useRef(null);
   const previousUserId = useRef(null);
@@ -55,7 +56,6 @@ export function CommerceProvider({ children }) {
   useEffect(() => writeStorage(STORAGE_KEYS.compare, compare), [compare]);
   useEffect(() => writeStorage(STORAGE_KEYS.recent, recentlyViewed), [recentlyViewed]);
   useEffect(() => () => {
-    window.clearTimeout(noticeTimer.current);
     window.clearTimeout(cartSyncTimer.current);
     window.clearTimeout(wishlistSyncTimer.current);
   }, []);
@@ -116,16 +116,17 @@ export function CommerceProvider({ children }) {
   }, [remoteSyncUserId, user?.id, wishlist]);
 
   const notify = useCallback((message, tone = 'success') => {
-    window.clearTimeout(noticeTimer.current);
-    setNotification({ message, tone });
-    noticeTimer.current = window.setTimeout(() => setNotification(null), 2400);
+    if (tone === 'success') toast.success(message);
+    else if (tone === 'warning') toast.warning(message);
+    else if (tone === 'error') toast.error(message);
+    else toast(message);
   }, []);
 
   const addToCart = useCallback((rawProduct, quantity = 1) => {
     const product = toCommerceProduct(rawProduct);
     if (!product.id) return;
     if (!isCommerceProductPurchasable(product)) {
-      notify(`${product.name} đang hết hàng`, 'warning');
+      notify(`${product.name} ${t('common.out_of_stock')}`, 'warning');
       return;
     }
     const safeQuantity = Math.max(1, Math.min(10, Number(quantity) || 1));
@@ -136,8 +137,8 @@ export function CommerceProvider({ children }) {
         ? { product, quantity: Math.min(10, item.quantity + safeQuantity) }
         : item);
     });
-    notify(`Đã thêm ${product.name} vào giỏ hàng`);
-  }, [notify]);
+    notify(t('cart.added_to_cart', { name: product.name }));
+  }, [notify, t]);
 
   const updateCartQuantity = useCallback((productId, quantity) => {
     const safeQuantity = Math.max(1, Math.min(10, Number(quantity) || 1));
@@ -148,8 +149,8 @@ export function CommerceProvider({ children }) {
 
   const removeFromCart = useCallback((productId) => {
     setCart((current) => current.filter((item) => item.product.id !== productId));
-    notify('Đã xóa sản phẩm khỏi giỏ hàng', 'neutral');
-  }, [notify]);
+    notify(t('cart.removed_from_cart'), 'neutral');
+  }, [notify, t]);
 
   const clearCart = useCallback(() => setCart([]), []);
 
@@ -158,8 +159,14 @@ export function CommerceProvider({ children }) {
     if (!product.id) return;
     const exists = wishlist.some((item) => item.id === product.id);
     setWishlist(exists ? wishlist.filter((item) => item.id !== product.id) : [product, ...wishlist]);
-    notify(exists ? 'Đã bỏ khỏi danh sách yêu thích' : 'Đã lưu vào danh sách yêu thích', exists ? 'neutral' : 'success');
-  }, [notify, wishlist]);
+    notify(exists ? t('product_detail.removed_from_wishlist') : t('product_detail.added_to_wishlist'), exists ? 'neutral' : 'success');
+  }, [notify, t, wishlist]);
+
+  const getProductGroup = (product) => {
+    if (product.componentType) return product.componentType.toLowerCase();
+    if (product.category) return product.category.split('-')[0].toLowerCase();
+    return 'unknown';
+  };
 
   const toggleCompare = useCallback((rawProduct) => {
     const product = toCommerceProduct(rawProduct);
@@ -167,16 +174,26 @@ export function CommerceProvider({ children }) {
     const exists = compare.some((item) => item.id === product.id);
     if (exists) {
       setCompare(compare.filter((item) => item.id !== product.id));
-      notify('Đã bỏ sản phẩm khỏi bảng so sánh', 'neutral');
+      notify(t('compare.removed'), 'neutral');
       return;
     }
+    
+    if (compare.length > 0) {
+      const currentGroup = getProductGroup(compare[0]);
+      const newGroup = getProductGroup(product);
+      if (currentGroup !== newGroup && currentGroup !== 'unknown' && newGroup !== 'unknown') {
+        notify('Chỉ có thể so sánh các sản phẩm cùng loại', 'error');
+        return;
+      }
+    }
+
     if (compare.length >= 4) {
-      notify('Chỉ có thể so sánh tối đa 4 sản phẩm', 'warning');
+      notify(t('compare.limit_reached'), 'warning');
       return;
     }
     setCompare([...compare, product]);
-    notify('Đã thêm sản phẩm vào bảng so sánh');
-  }, [compare, notify]);
+    notify(t('compare.added'));
+  }, [compare, notify, t]);
 
   const addRecentlyViewed = useCallback((rawProduct) => {
     const product = toCommerceProduct(rawProduct);
@@ -207,7 +224,6 @@ export function CommerceProvider({ children }) {
     wishlist,
     compare,
     recentlyViewed,
-    notification,
     commerceSyncing,
     commerceSyncError,
     addToCart,
@@ -231,7 +247,6 @@ export function CommerceProvider({ children }) {
     clearCart,
     compare,
     compareIds,
-    notification,
     recentlyViewed,
     removeFromCart,
     syncCartProducts,

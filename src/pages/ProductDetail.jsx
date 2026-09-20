@@ -1,5 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -28,6 +29,7 @@ import {
   Tag,
   Zap,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { useCommerce } from '../context/CommerceContext';
 import { isCommerceProductPurchasable } from '../lib/commerce';
@@ -119,9 +121,10 @@ const normalizeTextValue = (value) => {
 
 const normalizeImages = (product) => {
   if (!product) return [];
-  const imageFields = [product.images, product.gallery, product.image_urls, product.imageUrls, product.image_url, product.image];
+  const specs = parseJsonValue(product.specifications);
+  const imageFields = [product.images, product.gallery, product.image_urls, product.imageUrls, product.image_url, product.image, specs?.gallery];
   const images = imageFields.flatMap((field) => {
-    const parsed = parseJsonValue(field);
+    const parsed = typeof field === 'string' ? parseJsonValue(field) : field;
     if (Array.isArray(parsed)) return parsed;
     return isDisplayValue(parsed) ? [parsed] : [];
   });
@@ -247,13 +250,13 @@ const getStockState = (stock) => {
   return { available: !unavailable, label: String(stock).trim(), count: null };
 };
 
-const getProductBadges = (product, discount) => {
+const getProductBadges = (product, discount, t) => {
   const badges = [];
-  if (discount > 0) badges.push({ label: `Giảm ${Math.round(discount)}%`, tone: 'cyan', Icon: Tag });
-  if (product?.is_flash_sale ?? product?.isFlashSale) badges.push({ label: 'Flash sale', tone: 'purple', Icon: Zap });
-  if (product?.is_hot ?? product?.isHot) badges.push({ label: 'Nổi bật', tone: 'orange', Icon: Sparkles });
-  if (product?.is_best_seller ?? product?.isBestSeller) badges.push({ label: 'Bán chạy', tone: 'purple', Icon: BadgeCheck });
-  if (product?.is_new ?? product?.isNew) badges.push({ label: 'Sản phẩm mới', tone: 'cyan', Icon: Sparkles });
+  if (discount > 0) badges.push({ label: `${t('common.discount')} ${Math.round(discount)}%`, tone: 'cyan', Icon: Tag });
+  if (product?.is_flash_sale ?? product?.isFlashSale) badges.push({ label: t('common.sale'), tone: 'purple', Icon: Zap });
+  if (product?.is_hot ?? product?.isHot) badges.push({ label: t('product_card.hot'), tone: 'orange', Icon: Sparkles });
+  if (product?.is_best_seller ?? product?.isBestSeller) badges.push({ label: t('home.best_seller'), tone: 'purple', Icon: BadgeCheck });
+  if (product?.is_new ?? product?.isNew) badges.push({ label: t('common.new'), tone: 'cyan', Icon: Sparkles });
   return badges;
 };
 
@@ -414,21 +417,22 @@ function PromotionList({ promotions }) {
 }
 
 function ProductInformation({ description, specs, warranty, youtubeLink }) {
+  const { t } = useTranslation();
   if (description.length === 0 && specs.length === 0 && !isDisplayValue(warranty) && !isDisplayValue(youtubeLink)) return null;
   return (
     <section className="pd-panel pd-information" id="product-information" aria-labelledby="information-heading">
-      <div className="pd-section-heading"><div><p className="pd-kicker">THÔNG SỐ CHI TIẾT</p><h2 id="information-heading">Thông tin sản phẩm</h2></div><span className="pd-section-line" aria-hidden="true" /></div>
-      {description.length > 0 && <div className="pd-description"><h3>Mô tả</h3>
+      <div className="pd-section-heading"><div><p className="pd-kicker">{t('product_detail.specifications').toUpperCase()}</p><h2 id="information-heading">{t('product_detail.specifications')}</h2></div><span className="pd-section-line" aria-hidden="true" /></div>
+      {description.length > 0 && <div className="pd-description"><h3>{t('product_detail.description')}</h3>
         {description.map((paragraph, index) => <p key={`${paragraph.slice(0, 24)}-${index}`}>{paragraph}</p>)}
       </div>}
-      {isDisplayValue(warranty) && <div className="pd-warranty-row"><PackageCheck size={20} aria-hidden="true" /><span>Bảo hành</span><strong>{normalizeTextValue(warranty)}</strong></div>}
+      {isDisplayValue(warranty) && <div className="pd-warranty-row"><PackageCheck size={20} aria-hidden="true" /><span>{t('product_detail.warranty')}</span><strong>{normalizeTextValue(warranty)}</strong></div>}
       {specs.length > 0 && <div className="pd-spec-table-wrap"><table className="pd-spec-table">
-        <caption>Thông số kỹ thuật của sản phẩm</caption><tbody>
+        <caption>{t('product_detail.specifications')}</caption><tbody>
           {specs.map((spec) => <tr key={`${spec.key}-${spec.label}`}><th scope="row">{spec.label}</th><td>{spec.value}</td></tr>)}
         </tbody></table></div>}
       {isDisplayValue(youtubeLink) && <a className="pd-video-link" href={youtubeLink} target="_blank" rel="noreferrer">
         <span className="pd-video-icon"><Play size={18} fill="currentColor" aria-hidden="true" /></span>
-        <span><small>VIDEO SẢN PHẨM</small><strong>Xem nội dung trên YouTube</strong></span><ExternalLink size={17} aria-hidden="true" />
+        <span><small>VIDEO</small><strong>YouTube</strong></span><ExternalLink size={17} aria-hidden="true" />
       </a>}
     </section>
   );
@@ -455,17 +459,19 @@ function RelatedProductCard({ product }) {
 }
 
 function RelatedProducts({ products }) {
+  const { t } = useTranslation();
   if (products.length === 0) return null;
   return <aside className="pd-panel pd-related" aria-labelledby="related-heading">
-    <div className="pd-section-heading pd-section-heading--compact"><div><p className="pd-kicker">CÙNG PHÂN KHÚC</p><h2 id="related-heading">Sản phẩm tương tự</h2></div></div>
+    <div className="pd-section-heading pd-section-heading--compact"><div><p className="pd-kicker">{t('product_detail.related_products').toUpperCase()}</p><h2 id="related-heading">{t('product_detail.related_products')}</h2></div></div>
     <div className="pd-related-list">{products.map((product) => <RelatedProductCard product={product} key={product.id} />)}</div>
   </aside>;
 }
 
 export default function ProductDetail() {
+  const { t } = useTranslation();
   const { id } = useParams();
+  const { addToCart, addRecentlyViewed, isWishlisted, isCompared, toggleWishlist, toggleCompare } = useCommerce();
   const navigate = useNavigate();
-  const { addRecentlyViewed, addToCart, isCompared, isWishlisted, toggleCompare, toggleWishlist } = useCommerce();
   const [product, setProduct] = useState(null);
   const [category, setCategory] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -530,7 +536,7 @@ export default function ProductDetail() {
   const saving = originalPriceValue !== null && priceValue !== null && originalPriceValue > priceValue ? formatPrice(originalPriceValue - priceValue) : null;
   const stockState = getStockState(product.stock_quantity ?? product.stock ?? product.inventory ?? product.quantity);
   const categoryName = getCategoryName(product, category);
-  const productBadges = getProductBadges(product, discount);
+  const productBadges = getProductBadges(product, discount, t);
   const rating = product.rating ?? product.average_rating;
   const reviewCount = product.review_count ?? product.reviews_count;
   const views = formatCount(product.views ?? product.view_count);
@@ -605,12 +611,12 @@ export default function ProductDetail() {
               </span>)}
             </div>}
             <div className="pd-save-actions" aria-label="Lưu và so sánh sản phẩm">
-              <button type="button" className={`pd-button pd-button--ghost ${wished ? 'is-active' : ''}`} onClick={() => toggleWishlist(product)} aria-pressed={wished}>
-                <Heart size={16} fill={wished ? 'currentColor' : 'none'} aria-hidden="true" /> {wished ? 'Đã yêu thích' : 'Yêu thích'}
-              </button>
-              <button type="button" className={`pd-button pd-button--ghost ${compared ? 'is-active' : ''}`} onClick={() => toggleCompare(product)} aria-pressed={compared}>
-                <Scale size={16} aria-hidden="true" /> {compared ? 'Đang so sánh' : 'So sánh'}
-              </button>
+              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} type="button" className={`pd-button pd-button--ghost ${wished ? 'is-active' : ''}`} onClick={() => toggleWishlist(product)} aria-pressed={wished}>
+                <Heart size={16} fill={wished ? 'currentColor' : 'none'} aria-hidden="true" /> {wished ? t('product_detail.remove_from_wishlist') : t('product_detail.add_to_wishlist')}
+              </motion.button>
+              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} type="button" className={`pd-button pd-button--ghost ${compared ? 'is-active' : ''}`} onClick={() => toggleCompare(product)} aria-pressed={compared}>
+                <Scale size={16} aria-hidden="true" /> {t('product_detail.compare')}
+              </motion.button>
             </div>
             <h1 id="product-title">{product.name}</h1>
             <div className="pd-meta-row">
@@ -619,10 +625,10 @@ export default function ProductDetail() {
               {views && <span className="pd-views">{views} lượt xem</span>}
             </div>
             <QuickSpecs specs={specs} />
-            <div className="pd-price-panel"><div><span className="pd-price-label">Giá sản phẩm</span>
-              <div className="pd-price-line"><strong>{price ?? 'Liên hệ'}</strong>{originalPrice && <del>{originalPrice}</del>}</div>
-            </div>{saving && <div className="pd-saving"><span>Tiết kiệm</span><strong>{saving}</strong></div>}</div>
-            {isDisplayValue(warranty) && <div className="pd-inline-info"><PackageCheck size={18} aria-hidden="true" /><span>Bảo hành</span><strong>{normalizeTextValue(warranty)}</strong></div>}
+            <div className="pd-price-panel"><div><span className="pd-price-label">{t('common.price')}</span>
+              <div className="pd-price-line"><strong>{price ?? t('product_detail.contact')}</strong>{originalPrice && <del>{originalPrice}</del>}</div>
+            </div>{saving && <div className="pd-saving"><span>{t('common.discount')}</span><strong>{saving}</strong></div>}</div>
+            {isDisplayValue(warranty) && <div className="pd-inline-info"><PackageCheck size={18} aria-hidden="true" /><span>{t('product_detail.warranty')}</span><strong>{normalizeTextValue(warranty)}</strong></div>}
             <PromotionList promotions={promotions} />
             <div className="pd-purchase-actions">
               <div className="pd-quantity" aria-label="Số lượng sản phẩm">
@@ -632,13 +638,13 @@ export default function ProductDetail() {
                 <button type="button" onClick={() => setQuantity((value) => Math.min(maxQuantity, value + 1))}
                   disabled={quantity >= maxQuantity || !canPurchase} aria-label="Tăng số lượng"><Plus size={17} aria-hidden="true" /></button>
               </div>
-              <button type="button" className="pd-button pd-button--primary pd-add-cart" disabled={!canPurchase} onClick={() => addToCart(product, quantity)}>
-                <ShoppingCart size={19} aria-hidden="true" /><span>{canPurchase ? 'Thêm vào giỏ' : 'Hết hàng'}</span>
-              </button>
+              <motion.button whileHover={canPurchase ? { scale: 1.02 } : {}} whileTap={canPurchase ? { scale: 0.98 } : {}} type="button" className="pd-button pd-button--primary pd-add-cart" disabled={!canPurchase} onClick={() => addToCart(product, quantity)}>
+                <ShoppingCart size={19} aria-hidden="true" /><span>{canPurchase ? t('product_detail.add_to_cart') : t('product_detail.out_of_stock')}</span>
+              </motion.button>
             </div>
-            <button type="button" className="pd-button pd-button--buy" disabled={!canPurchase} onClick={buyNow}>
-              <Zap size={19} fill="currentColor" aria-hidden="true" /><span>{canPurchase ? 'Mua ngay' : 'Sản phẩm đang hết hàng'}</span>
-            </button>
+            <motion.button whileHover={canPurchase ? { scale: 1.02 } : {}} whileTap={canPurchase ? { scale: 0.98 } : {}} type="button" className="pd-button pd-button--buy" disabled={!canPurchase} onClick={buyNow}>
+              <Zap size={19} fill="currentColor" aria-hidden="true" /><span>{canPurchase ? t('product_detail.buy_now') : t('product_detail.out_of_stock')}</span>
+            </motion.button>
             {specs.length > 0 && <a href="#product-information" className="pd-spec-link">Xem toàn bộ thông số <ChevronRight size={15} aria-hidden="true" /></a>}
           </section>
         </div>
@@ -651,9 +657,9 @@ export default function ProductDetail() {
         <ProductReviews productId={product.id} />
         <ProductAlerts currentPrice={priceValue} productId={product.id} stockAvailable={canPurchase} />
       </div>
-      <div className="pd-mobile-bar"><div><span>Giá sản phẩm</span><strong>{price ?? 'Liên hệ'}</strong></div>
+      <div className="pd-mobile-bar"><div><span>{t('common.price')}</span><strong>{price ?? t('product_detail.contact')}</strong></div>
         <button type="button" className="pd-button pd-button--primary" disabled={!canPurchase} onClick={() => addToCart(product, quantity)}>
-          <ShoppingCart size={18} aria-hidden="true" /> {canPurchase ? 'Thêm vào giỏ' : 'Hết hàng'}
+          <ShoppingCart size={18} aria-hidden="true" /> {canPurchase ? t('product_detail.add_to_cart') : t('product_detail.out_of_stock')}
         </button>
       </div>
     </div>

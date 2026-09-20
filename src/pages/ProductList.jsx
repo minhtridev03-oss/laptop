@@ -1,9 +1,30 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ChevronRight, Filter, PackageSearch, SlidersHorizontal } from 'lucide-react';
+import { 
+  ChevronRight, Filter, PackageSearch, SlidersHorizontal, 
+  Laptop, Gamepad2, Tablet, Monitor, Cpu, Server, HardDrive, 
+  Mouse, Headphones, Apple, Component, ChevronDown 
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import ProductCard from '../components/ui/ProductCard';
 import { supabase } from '../lib/supabase';
+
+const getCategoryIcon = (name) => {
+  if (!name) return <Component size={18} />;
+  const lowerName = name.toLowerCase();
+  if (lowerName.includes('laptop') && lowerName.includes('game')) return <Gamepad2 size={18} />;
+  if (lowerName.includes('laptop') || lowerName.includes('macbook')) return <Laptop size={18} />;
+  if (lowerName.includes('bảng') || lowerName.includes('tablet')) return <Tablet size={18} />;
+  if (lowerName.includes('màn hình')) return <Monitor size={18} />;
+  if (lowerName.includes('pc') || lowerName.includes('máy tính để bàn')) return <Server size={18} />;
+  if (lowerName.includes('linh kiện') || lowerName.includes('cpu') || lowerName.includes('vga') || lowerName.includes('main')) return <Cpu size={18} />;
+  if (lowerName.includes('chuột') || lowerName.includes('phím')) return <Mouse size={18} />;
+  if (lowerName.includes('tai nghe') || lowerName.includes('loa')) return <Headphones size={18} />;
+  if (lowerName.includes('apple')) return <Apple size={18} />;
+  return <Component size={18} />;
+};
 
 const priceRanges = [
   { id: 'all', label: 'Tất cả mức giá', test: () => true },
@@ -51,7 +72,12 @@ const formatProductForCard = (product) => {
   };
 };
 
+// Columns needed for Product Cards - excludes heavy columns like specifications JSON
+const PRODUCT_COLUMNS = 'id,name,price,original_price,discount,category_id,image_url,spec_cpu,spec_ram,spec_storage,spec_gpu,is_hot,is_new,is_best_seller,is_flash_sale,stock_quantity,status,sort_order';
+const PAGE_SIZE = 24;
+
 export default function ProductList() {
+  const { t } = useTranslation();
   const { categoryId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
@@ -60,46 +86,88 @@ export default function ProductList() {
   const [seriesLinksError, setSeriesLinksError] = useState(null);
   const [priceRange, setPriceRange] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
   const [error, setError] = useState(null);
+  const loadMoreRef = useRef(null);
   const query = (searchParams.get('q') ?? '').trim();
   const requestedSeriesId = searchParams.get('series');
   const requestedSort = searchParams.get('sort') ?? 'featured';
   const sort = sortOptions.some((option) => option.id === requestedSort) ? requestedSort : 'featured';
 
+  // Reset page when filters/route change
+  useEffect(() => {
+    setProducts([]);
+    setPage(0);
+    setHasMore(true);
+  }, [categoryId, query, sort, priceRange, requestedSeriesId]);
+
+  // Fetch catalog metadata (categories + series links) once
   useEffect(() => {
     let ignore = false;
-
-    async function fetchCatalog() {
-      setLoading(true);
-      setError(null);
+    async function fetchMeta() {
       try {
-        const [productsResponse, categoriesResponse, productSeriesResponse] = await Promise.all([
-          supabase.from('products').select('*').order('sort_order', { ascending: true }),
-          supabase
-            .from('categories')
+        const [categoriesRes, seriesRes] = await Promise.all([
+          supabase.from('categories')
             .select('id, name, sort_order, category_groups(id, name, sort_order, category_items(id, name, sort_order, link_url))')
             .order('sort_order', { ascending: true }),
           supabase.from('product_category_items').select('product_id, category_item_id'),
         ]);
-
-        if (productsResponse.error) throw productsResponse.error;
-        if (categoriesResponse.error) throw categoriesResponse.error;
-        if (!ignore) {
-          setProducts(productsResponse.data ?? []);
-          setCategories(categoriesResponse.data ?? []);
-          setProductSeriesLinks(productSeriesResponse.data ?? []);
-          setSeriesLinksError(productSeriesResponse.error ?? null);
-        }
-      } catch (fetchError) {
-        if (!ignore) setError(fetchError);
-      } finally {
-        if (!ignore) setLoading(false);
+        if (ignore) return;
+        if (!categoriesRes.error) setCategories(categoriesRes.data ?? []);
+        setProductSeriesLinks(seriesRes.data ?? []);
+        setSeriesLinksError(seriesRes.error ?? null);
+      } catch (err) {
+        console.error('Meta fetch error:', err);
       }
     }
-
-    fetchCatalog();
+    fetchMeta();
     return () => { ignore = true; };
   }, []);
+
+  // Paginated product fetch - triggered by page state
+  const fetchPage = useCallback(async (pageIndex) => {
+    if (pageIndex === 0) setLoading(true);
+    else setLoadingMore(true);
+    try {
+      let queryBuilder = supabase
+        .from('products')
+        .select(PRODUCT_COLUMNS)
+        .eq('status', 'active')
+        .order('sort_order', { ascending: true })
+        .range(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE - 1);
+
+      const { data, error: fetchError } = await queryBuilder;
+      if (fetchError) throw fetchError;
+      const rows = data ?? [];
+      setProducts((prev) => pageIndex === 0 ? rows : [...prev, ...rows]);
+      setHasMore(rows.length === PAGE_SIZE);
+    } catch (err) {
+      if (pageIndex === 0) setError(err);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchPage(page); }, [fetchPage, page]);
+
+  // IntersectionObserver to auto-load next page when sentinel is visible
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          setPage((prev) => prev + 1);
+        }
+      },
+      { rootMargin: '300px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore]);
 
   const seriesEntries = useMemo(() => categories.flatMap((categoryItem) => (
     (categoryItem.category_groups ?? []).flatMap((group) => (
@@ -169,7 +237,7 @@ export default function ProductList() {
 
       <section className="luxury-page-section mx-auto min-h-[70vh] w-full max-w-[1440px] px-4 py-9 lg:px-6 lg:py-12">
         <div className="mb-8">
-          <p className="luxury-eyebrow mb-3">DANH MỤC SẢN PHẨM</p>
+          <p className="luxury-eyebrow mb-3">{t('products.eyebrow')}</p>
           <div className="flex flex-col justify-between gap-5 border-b border-border-subtle pb-6 sm:flex-row sm:items-end">
             <div>
               <h1 className="luxury-heading text-2xl sm:text-3xl">{pageTitle}</h1>
@@ -190,29 +258,40 @@ export default function ProductList() {
             </div>
             <label className="flex min-h-11 items-center gap-3 rounded-md border border-border-subtle bg-bg-card/80 px-3 text-xs text-text-muted">
               <SlidersHorizontal size={16} className="text-primary" aria-hidden="true" />
-              <span className="sr-only sm:not-sr-only">Sắp xếp</span>
+              <span className="sr-only sm:not-sr-only">{t('common.sort')}</span>
               <select
                 value={sort}
                 onChange={handleSortChange}
                 className="min-w-[155px] bg-transparent py-2 font-semibold text-text-main outline-none"
                 aria-label="Sắp xếp sản phẩm"
               >
-                {sortOptions.map((option) => <option key={option.id} value={option.id} className="bg-bg-card">{option.label}</option>)}
+                <option value="featured" className="bg-bg-card">{t('products.sort_relevance')}</option>
+                <option value="newest" className="bg-bg-card">{t('products.sort_newest')}</option>
+                <option value="price-asc" className="bg-bg-card">{t('products.sort_price_asc')}</option>
+                <option value="price-desc" className="bg-bg-card">{t('products.sort_price_desc')}</option>
               </select>
             </label>
           </div>
         </div>
 
         <div className="grid items-start gap-6 md:grid-cols-[250px_minmax(0,1fr)] lg:gap-8">
-          <details className="group md:block">
-            <summary className="luxury-panel flex min-h-12 cursor-pointer list-none items-center justify-between rounded-[10px] px-4 text-sm font-semibold text-text-main md:hidden">
+          <div className="group md:block">
+            <button 
+              type="button"
+              className="luxury-panel flex w-full min-h-12 cursor-pointer list-none items-center justify-between rounded-[10px] px-4 text-sm font-semibold text-text-main md:hidden"
+              onClick={(e) => {
+                const aside = e.currentTarget.nextElementSibling;
+                aside.classList.toggle('hidden');
+                e.currentTarget.querySelector('.chevron-icon').classList.toggle('rotate-90');
+              }}
+            >
               <span className="flex items-center gap-2"><Filter size={17} className="text-primary" aria-hidden="true" /> Bộ lọc sản phẩm</span>
-              <ChevronRight size={16} className="transition-transform group-open:rotate-90" aria-hidden="true" />
-            </summary>
-            <aside className="luxury-panel mt-3 hidden rounded-[10px] p-5 group-open:block md:mt-0 md:block" aria-label="Bộ lọc sản phẩm">
+              <ChevronRight size={16} className="chevron-icon transition-transform" aria-hidden="true" />
+            </button>
+            <aside className="luxury-panel mt-3 hidden rounded-[10px] p-5 md:mt-0 md:block" aria-label="Bộ lọc sản phẩm">
               <div className="mb-5 border-b border-border-subtle pb-4">
                 <p className="luxury-eyebrow mb-1">BỘ LỌC</p>
-                <h2 className="font-['Sora'] text-sm font-bold text-text-main">Tinh chỉnh lựa chọn</h2>
+                <h2 className="font-['Be_Vietnam_Pro'] text-sm font-bold text-text-main">{t('products.filter_status')}</h2>
               </div>
 
               <fieldset className="mb-7">
@@ -235,29 +314,97 @@ export default function ProductList() {
                 </div>
               </fieldset>
 
-              <div>
-                <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-text-main">Danh mục</h2>
-                <nav className="custom-scrollbar max-h-64 space-y-1 overflow-y-auto pr-1" aria-label="Lọc theo danh mục">
-                  <Link to="/products" className={`flex min-h-10 items-center rounded-md px-3 text-sm transition-colors ${!resolvedCategoryId ? 'bg-primary/[0.09] text-primary-hover' : 'text-text-muted hover:text-text-main'}`}>
-                    Tất cả sản phẩm
+              <div className="bg-bg-card/40 border border-border-subtle rounded-xl p-3">
+                <nav className="custom-scrollbar max-h-[600px] space-y-1 overflow-y-auto pr-1" aria-label="Lọc theo danh mục">
+                  <Link to="/products" className={`group flex min-h-12 items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${!resolvedCategoryId ? 'bg-[#1a1914] text-primary-hover' : 'text-text-muted hover:bg-bg-main/50 hover:text-text-main'}`}>
+                    <div className="flex items-center gap-3">
+                      <span className={!resolvedCategoryId ? 'text-primary-hover' : 'text-text-muted group-hover:text-text-main'}><PackageSearch size={18} /></span>
+                      Tất cả sản phẩm
+                    </div>
                   </Link>
-                  {categories.map((item) => (
-                    <Link
-                      key={item.id}
-                      to={`/category/${item.id}`}
-                      className={`flex min-h-10 items-center rounded-md px-3 text-sm transition-colors ${
-                        String(item.id) === String(resolvedCategoryId) ? 'bg-primary/[0.09] text-primary-hover' : 'text-text-muted hover:text-text-main'
-                      }`}
-                    >
-                      {item.name}
-                    </Link>
-                  ))}
+                  {categories.map((item) => {
+                    const isActive = String(item.id) === String(resolvedCategoryId);
+                    const hasGroups = item.category_groups && item.category_groups.length > 0;
+                    
+                    return (
+                      <details key={item.id} className="group" open={isActive}>
+                        <summary 
+                          className={`flex min-h-12 cursor-pointer list-none items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive ? 'bg-[#1a1914] text-primary-hover' : 'text-text-muted hover:bg-bg-main/50 hover:text-text-main'}`}
+                        >
+                          <Link to={`/category/${item.id}`} className="flex flex-1 items-center gap-3" onClick={(e) => hasGroups && e.stopPropagation()}>
+                            <span className={isActive ? 'text-primary-hover' : 'text-text-muted group-hover:text-text-main'}>
+                              {getCategoryIcon(item.name)}
+                            </span>
+                            {item.name}
+                          </Link>
+                          {hasGroups ? (
+                            <ChevronDown size={16} className={`transition-transform duration-200 ${isActive ? 'text-primary-hover' : 'text-text-muted group-hover:text-text-main'} group-open:rotate-180`} aria-hidden="true" />
+                          ) : (
+                            <ChevronRight size={16} className={isActive ? 'text-primary-hover' : 'text-text-muted group-hover:text-text-main'} aria-hidden="true" />
+                          )}
+                        </summary>
+                        {hasGroups && (
+                          <div className="mt-1 flex flex-col space-y-1 pl-10 pr-2 pb-2">
+                             {item.category_groups.map(group => (
+                                <div key={group.id} className="text-xs">
+                                  {group.name && <div className="py-1.5 font-semibold text-text-muted/60 uppercase tracking-wider">{group.name}</div>}
+                                  {group.category_items && group.category_items.length > 0 && (
+                                     <div className="flex flex-col space-y-0.5">
+                                        {group.category_items.map(subItem => {
+                                           const isSubActive = String(activeSeriesId) === String(subItem.id);
+                                           return (
+                                             <Link 
+                                               key={subItem.id} 
+                                               to={`/products?series=${subItem.id}`}
+                                               className={`py-2 px-2 rounded-md transition-colors ${isSubActive ? 'bg-primary/10 font-semibold text-primary-hover' : 'text-text-muted hover:bg-bg-main/40 hover:text-text-main'}`}
+                                             >
+                                                {subItem.name}
+                                             </Link>
+                                           );
+                                        })}
+                                     </div>
+                                  )}
+                                </div>
+                             ))}
+                          </div>
+                        )}
+                      </details>
+                    );
+                  })}
                 </nav>
               </div>
             </aside>
-          </details>
+          </div>
 
           <div className="min-w-0">
+            <div className="mb-5 flex flex-wrap items-center gap-2">
+              <span className="flex items-center pr-2 text-xs font-semibold text-text-muted">Lọc nhanh:</span>
+              {[
+                { label: 'Core i5', q: 'i5' },
+                { label: 'Core i7', q: 'i7' },
+                { label: 'RAM 8GB', q: '8gb' },
+                { label: 'RAM 16GB', q: '16gb' },
+                { label: 'RTX 4060', q: '4060' },
+              ].map((qf) => (
+                <button
+                  key={qf.label}
+                  type="button"
+                  onClick={() => {
+                    const nextParams = new URLSearchParams(searchParams);
+                    if (query.toLocaleLowerCase('vi').includes(qf.q)) {
+                      nextParams.delete('q');
+                    } else {
+                      nextParams.set('q', qf.label);
+                    }
+                    setSearchParams(nextParams);
+                  }}
+                  className={`luxury-chip cursor-pointer rounded-full px-3 py-1.5 transition-colors hover-lift ${query.toLocaleLowerCase('vi').includes(qf.q) ? 'border-primary/50 bg-primary/10 text-primary-hover' : 'hover:border-primary/30 hover:text-text-main'}`}
+                >
+                  {qf.label}
+                </button>
+              ))}
+            </div>
+
             {loading ? (
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-5" role="status" aria-label="Đang tải sản phẩm">
                 {[0, 1, 2, 3, 4, 5].map((item) => <div key={item} className="luxury-panel h-[390px] animate-pulse rounded-[10px]" />)}
@@ -280,9 +427,38 @@ export default function ProductList() {
                 )}
               </div>
             ) : filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-5">
-                {filteredProducts.map((product) => <ProductCard key={product.id} product={formatProductForCard(product)} />)}
-              </div>
+              <>
+                <motion.div
+                  className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-5"
+                  initial="hidden"
+                  animate="visible"
+                  variants={{
+                    hidden: {},
+                    visible: { transition: { staggerChildren: 0.045 } },
+                  }}
+                >
+                  <AnimatePresence>
+                    {filteredProducts.map((product) => (
+                      <motion.div
+                        key={product.id}
+                        variants={{
+                          hidden: { opacity: 0, y: 20 },
+                          visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
+                        }}
+                      >
+                        <ProductCard product={formatProductForCard(product)} />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+                {/* Sentinel for IntersectionObserver – triggers load more */}
+                <div ref={loadMoreRef} className="h-4" aria-hidden="true" />
+                {loadingMore && (
+                  <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-5" role="status" aria-label="Đang tải thêm">
+                    {[0,1,2].map((i) => <div key={i} className="luxury-panel h-[390px] animate-pulse rounded-[10px]" />)}
+                  </div>
+                )}
+              </>
             ) : (
               <div className="luxury-panel rounded-[10px] px-6 py-16 text-center">
                 <PackageSearch size={34} className="mx-auto mb-4 text-primary" aria-hidden="true" />

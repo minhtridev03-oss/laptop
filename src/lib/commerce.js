@@ -8,19 +8,27 @@ const compactSpecs = (product) => {
   };
 };
 
-export const toCommerceProduct = (product = {}) => ({
-  id: product.id,
-  name: product.name ?? 'Sản phẩm',
-  price: Number(product.price) || 0,
-  originalPrice: Number(product.originalPrice ?? product.original_price) || 0,
-  discount: Number(product.discount) || 0,
-  category: product.category ?? product.category_id ?? null,
-  image: product.image ?? product.image_url ?? null,
-  specs: compactSpecs(product),
-  isHot: Boolean(product.isHot ?? product.is_hot),
-  stockQuantity: product.stockQuantity ?? product.stock_quantity ?? null,
-  status: product.status ?? 'active',
-});
+export const toCommerceProduct = (product = {}) => {
+  let specsObj = {};
+  try {
+    specsObj = typeof product.specifications === 'string' ? JSON.parse(product.specifications) : (product.specifications || {});
+  } catch (e) {}
+
+  return {
+    id: product.id,
+    name: product.name ?? 'Sản phẩm',
+    price: Number(product.price) || 0,
+    originalPrice: Number(product.originalPrice ?? product.original_price) || 0,
+    discount: Number(product.discount) || 0,
+    category: product.category ?? product.category_id ?? null,
+    image: product.image ?? product.image_url ?? null,
+    specs: compactSpecs(product),
+    componentType: specsObj.component_type || null,
+    isHot: Boolean(product.isHot ?? product.is_hot),
+    stockQuantity: product.stockQuantity ?? product.stock_quantity ?? null,
+    status: product.status ?? 'active',
+  };
+};
 
 export const isCommerceProductPurchasable = (product = {}) => {
   if (product.status === 'inactive') return false;

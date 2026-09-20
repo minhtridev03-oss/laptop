@@ -1,9 +1,14 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, ImageOff, Scale, ShoppingBag, Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 import { useCommerce } from '../../context/CommerceContext';
 import { formatCommercePrice, isCommerceProductPurchasable } from '../../lib/commerce';
+import { imgPresets } from '../../lib/imageUtils';
 
-export default function ProductCard({ product }) {
+function ProductCard({ product }) {
+  const { t } = useTranslation();
   const { addToCart, isCompared, isWishlisted, toggleCompare, toggleWishlist } = useCommerce();
   const price = formatCommercePrice(product.price);
   const originalPrice = formatCommercePrice(product.originalPrice);
@@ -14,7 +19,7 @@ export default function ProductCard({ product }) {
   const canPurchase = isCommerceProductPurchasable(product);
 
   return (
-    <article className="luxury-panel hover-lift group flex h-full flex-col overflow-hidden rounded-[10px] p-3 sm:p-4">
+    <article className="luxury-panel hover-lift group flex h-full flex-col overflow-hidden rounded-[10px] p-3 sm:p-4 reveal-up">
       <div className="relative mb-4">
         <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1.5">
           {hasDiscount && (
@@ -24,13 +29,15 @@ export default function ProductCard({ product }) {
           )}
           {product.isHot && (
             <span className="inline-flex items-center gap-1 rounded border border-[#c58b72]/40 bg-bg-main/90 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#d9a48d] backdrop-blur">
-              <Sparkles size={10} aria-hidden="true" /> Nổi bật
+              <Sparkles size={10} aria-hidden="true" /> {t('product_card.hot')}
             </span>
           )}
         </div>
 
         <div className="absolute right-2 top-2 z-20 flex flex-col gap-1.5">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             type="button"
             onClick={() => toggleWishlist(product)}
             className={`grid h-10 w-10 place-items-center rounded-md border backdrop-blur transition-colors ${wished ? 'border-primary/55 bg-primary/15 text-primary-hover' : 'border-border-subtle bg-bg-main/85 text-text-muted hover:border-primary/45 hover:text-primary-hover'}`}
@@ -38,8 +45,10 @@ export default function ProductCard({ product }) {
             aria-pressed={wished}
           >
             <Heart size={16} fill={wished ? 'currentColor' : 'none'} aria-hidden="true" />
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             type="button"
             onClick={() => toggleCompare(product)}
             className={`grid h-10 w-10 place-items-center rounded-md border backdrop-blur transition-colors ${compared ? 'border-primary/55 bg-primary/15 text-primary-hover' : 'border-border-subtle bg-bg-main/85 text-text-muted hover:border-primary/45 hover:text-primary-hover'}`}
@@ -47,22 +56,23 @@ export default function ProductCard({ product }) {
             aria-pressed={compared}
           >
             <Scale size={16} aria-hidden="true" />
-          </button>
+          </motion.button>
         </div>
 
         <Link
           to={`/product/${product.id}`}
-          className="relative flex h-44 items-center justify-center overflow-hidden rounded-md border border-border-subtle bg-[radial-gradient(circle_at_50%_46%,rgba(214,184,115,0.09),transparent_55%),#0b0a08] p-4 transition-colors group-hover:border-primary/35 sm:h-52"
+          className="relative flex h-48 w-full items-center justify-center overflow-hidden rounded-lg bg-[radial-gradient(circle_at_50%_46%,rgba(214,184,115,0.09),transparent_55%),#0b0a08] transition-colors sm:h-56"
           aria-label={`Xem chi tiết ${product.name}`}
         >
-          <span className="pointer-events-none absolute inset-2 border border-primary/[0.04]" aria-hidden="true" />
           {product.image ? (
             <img
-              src={product.image}
+              src={imgPresets.card(product.image)}
               alt={product.name}
+              width={400}
+              height={400}
               loading="lazy"
               decoding="async"
-              className="max-h-full max-w-full object-contain drop-shadow-[0_22px_30px_rgba(0,0,0,0.48)] transition-transform duration-500 group-hover:scale-[1.045]"
+              className="h-full w-full object-contain p-2 drop-shadow-[0_22px_30px_rgba(0,0,0,0.48)] transition-transform duration-700 group-hover:scale-[1.08]"
             />
           ) : (
             <ImageOff size={28} className="text-text-muted/50" aria-hidden="true" />
@@ -71,7 +81,7 @@ export default function ProductCard({ product }) {
       </div>
 
       <div className="flex flex-1 flex-col">
-        <span className="luxury-eyebrow mb-2">LỰA CHỌN NỔI BẬT</span>
+        <span className="luxury-eyebrow mb-2">{t('product_card.featured')}</span>
         <Link to={`/product/${product.id}`} className="group/title">
           <h3 className="line-clamp-2 min-h-11 text-[13px] font-semibold leading-[1.65] text-text-main transition-colors group-hover/title:text-primary-hover sm:text-sm">
             {product.name}
@@ -91,8 +101,8 @@ export default function ProductCard({ product }) {
         <div className="mt-auto border-t border-border-subtle pt-4">
           <div className="flex items-end justify-between gap-3">
             <div className="min-w-0">
-              <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.12em] text-text-muted">Giá sản phẩm</span>
-              <strong className="block truncate font-['Sora'] text-base font-bold text-primary-hover sm:text-lg">
+              <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.12em] text-text-muted">{t('common.price')}</span>
+              <strong className="block truncate font-['Be_Vietnam_Pro'] text-base font-bold text-primary-hover sm:text-lg">
                 {price}
               </strong>
               {originalPrice && Number(product.originalPrice) > Number(product.price) && (
@@ -114,3 +124,6 @@ export default function ProductCard({ product }) {
     </article>
   );
 }
+
+// Chỉ re-render khi product.id hoặc trạng thái wishlisted/compared thay đổi
+export default memo(ProductCard);

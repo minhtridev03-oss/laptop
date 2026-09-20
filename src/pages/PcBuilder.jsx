@@ -25,8 +25,9 @@ import {
   Sparkles,
   WalletCards,
   X,
-  Zap,
+  Zap
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { formatCommercePrice, toCommerceProduct } from '../lib/commerce';
 import { useCommerce } from '../context/CommerceContext';
@@ -149,8 +150,8 @@ function PartPicker({ catalog, onClose, onSelect, openSlot, selections }) {
                   <ProductVisual className="h-20 w-24" icon={SlotIcon} iconSize={24} product={product} />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
-                      <div><p className="text-[10px] font-bold uppercase tracking-[0.08em] text-primary/80">{product.brand || 'Linh kiện'} · {getBuilderSpec(product, 'builder_tier', 'custom')}</p><h3 className="mt-1 font-['Sora'] text-sm font-semibold leading-6 text-text-main">{product.name}</h3></div>
-                      <p className="shrink-0 font-['Sora'] text-sm font-bold text-primary-hover">{formatCommercePrice(product.price)}</p>
+                      <div><p className="text-[10px] font-bold uppercase tracking-[0.08em] text-primary/80">{product.brand || 'Linh kiện'} · {getBuilderSpec(product, 'builder_tier', 'custom')}</p><h3 className="mt-1 font-['Be_Vietnam_Pro'] text-sm font-semibold leading-6 text-text-main">{product.name}</h3></div>
+                      <p className="shrink-0 font-['Be_Vietnam_Pro'] text-sm font-bold text-primary-hover">{formatCommercePrice(product.price)}</p>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">{getPartHighlights(product).map((item) => <span key={item} className="luxury-chip rounded px-2 py-1 text-[10px]">{item}</span>)}</div>
                     {conflict && <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-[#e7958d]"><AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />{conflict}</p>}
@@ -168,9 +169,10 @@ function PartPicker({ catalog, onClose, onSelect, openSlot, selections }) {
 }
 
 export default function PcBuilder() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { addToCart } = useCommerce();
-  const { user } = useAuth();
+  const { user, setAuthModalOpen } = useAuth();
   const [catalog, setCatalog] = useState([]);
   const [selectedIds, setSelectedIds] = useState({});
   const [openSlot, setOpenSlot] = useState(null);
@@ -307,9 +309,20 @@ export default function PcBuilder() {
     navigate('/cart');
   };
 
+  const [pendingSave, setPendingSave] = useState(false);
+
+  useEffect(() => {
+    if (user && pendingSave) {
+      setPendingSave(false);
+      saveBuild();
+    }
+  }, [user, pendingSave]);
+
   const saveBuild = async () => {
     if (!user) {
-      setSaveState({ loading: false, message: 'Vui lòng đăng nhập để lưu cấu hình vào tài khoản.' });
+      setSaveState({ loading: false, message: 'Vui lòng đăng nhập để lưu cấu hình.' });
+      setPendingSave(true);
+      setAuthModalOpen(true);
       return;
     }
     setSaveState({ loading: true, message: '' });
@@ -330,11 +343,11 @@ export default function PcBuilder() {
 
   return (
     <>
-      <Helmet><title>Build PC theo nhu cầu | Laptop World</title><meta name="description" content="Tự chọn linh kiện, kiểm tra tương thích và dự toán cấu hình PC tại Laptop World." /></Helmet>
+      <Helmet><title>{t('pc_builder.title')} | Laptop World</title><meta name="description" content="Tự chọn linh kiện, kiểm tra tương thích và dự toán cấu hình PC tại Laptop World." /></Helmet>
       <section className="luxury-page-section mx-auto min-h-[75vh] w-full max-w-[1440px] px-4 py-9 lg:px-6 lg:py-12">
         <div className="mb-8 grid gap-5 border-b border-border-subtle pb-7 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div><p className="luxury-eyebrow mb-3">PC CONFIGURATOR</p><h1 className="luxury-heading text-3xl sm:text-4xl">Tự build PC của bạn</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-text-muted">Chọn từng linh kiện, hệ thống tự kiểm tra tương thích và dự toán công suất trước khi thêm toàn bộ cấu hình vào giỏ hàng.</p></div>
-          <div><div className="flex flex-wrap gap-2"><button type="button" onClick={saveBuild} disabled={selectedProducts.length === 0 || saveState.loading} className="flex min-h-11 items-center gap-2 rounded-md border border-primary/30 bg-primary/[0.06] px-4 text-xs font-bold uppercase tracking-[0.06em] text-primary-hover disabled:opacity-40">{saveState.loading ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />} Lưu cấu hình</button><button type="button" onClick={copyBuild} disabled={selectedProducts.length === 0} className="flex min-h-11 items-center gap-2 rounded-md border border-border-subtle bg-bg-card px-4 text-xs font-bold uppercase tracking-[0.06em] text-text-main hover:border-primary/40 hover:text-primary-hover disabled:opacity-40">{copied ? <Check size={16} className="text-[#9ed1ad]" aria-hidden="true" /> : <Copy size={16} className="text-primary" aria-hidden="true" />}{copied ? 'Đã sao chép' : 'Chia sẻ cấu hình'}</button><button type="button" onClick={() => { setSelectedIds({}); setAppliedRecommendation(null); setSaveState({ loading: false, message: '' }); }} disabled={selectedProducts.length === 0} className="flex min-h-11 items-center gap-2 rounded-md border border-border-subtle bg-bg-card px-4 text-xs font-bold uppercase tracking-[0.06em] text-text-main hover:border-primary/40 hover:text-primary-hover disabled:opacity-40"><RotateCcw size={16} className="text-primary" aria-hidden="true" /> Làm mới</button></div>{saveState.message && <p className="mt-2 text-right text-[10px] text-primary-hover">{saveState.message}</p>}</div>
+          <div><p className="luxury-eyebrow mb-3">{t('pc_builder.eyebrow')}</p><h1 className="luxury-heading text-3xl sm:text-4xl">{t('pc_builder.title')}</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-text-muted">{t('pc_builder.subtitle')}</p></div>
+          <div><div className="flex flex-wrap gap-2"><button type="button" onClick={saveBuild} disabled={selectedProducts.length === 0 || saveState.loading} className="flex min-h-11 items-center gap-2 rounded-md border border-primary/30 bg-primary/[0.06] px-4 text-xs font-bold uppercase tracking-[0.06em] text-primary-hover disabled:opacity-40">{saveState.loading ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />} {t('pc_builder.save_build')}</button><button type="button" onClick={copyBuild} disabled={selectedProducts.length === 0} className="flex min-h-11 items-center gap-2 rounded-md border border-border-subtle bg-bg-card px-4 text-xs font-bold uppercase tracking-[0.06em] text-text-main hover:border-primary/40 hover:text-primary-hover disabled:opacity-40">{copied ? <Check size={16} className="text-[#9ed1ad]" aria-hidden="true" /> : <Copy size={16} className="text-primary" aria-hidden="true" />}{copied ? 'Đã sao chép' : t('pc_builder.share_build')}</button><button type="button" onClick={() => { setSelectedIds({}); setAppliedRecommendation(null); setSaveState({ loading: false, message: '' }); }} disabled={selectedProducts.length === 0} className="flex min-h-11 items-center gap-2 rounded-md border border-border-subtle bg-bg-card px-4 text-xs font-bold uppercase tracking-[0.06em] text-text-main hover:border-primary/40 hover:text-primary-hover disabled:opacity-40"><RotateCcw size={16} className="text-primary" aria-hidden="true" /> Làm mới</button></div>{saveState.message && <p className="mt-2 text-right text-[10px] text-primary-hover">{saveState.message}</p>}</div>
         </div>
 
         <div className="luxury-panel mb-7 rounded-[10px] p-5 lg:p-6">
@@ -345,7 +358,7 @@ export default function PcBuilder() {
           <div className="grid gap-3 md:grid-cols-3">
             {profileRecommendations.map(({ profile, recommendation }) => (
               <button key={profile.id} type="button" aria-pressed={activeProfileId === profile.id} onClick={() => chooseProfile(profile, recommendation)} disabled={!recommendation.ready} className={`group rounded-lg border p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/45 disabled:cursor-not-allowed disabled:opacity-45 ${activeProfileId === profile.id ? 'border-primary/45 bg-primary/[0.08]' : 'border-border-subtle bg-bg-main/60'}`}>
-                <span className="flex items-center justify-between"><span className="font-['Sora'] text-sm font-bold text-text-main group-hover:text-primary-hover">{profile.name}</span><Sparkles size={16} className="text-primary" aria-hidden="true" /></span>
+                <span className="flex items-center justify-between"><span className="font-['Be_Vietnam_Pro'] text-sm font-bold text-text-main group-hover:text-primary-hover">{profile.name}</span><Sparkles size={16} className="text-primary" aria-hidden="true" /></span>
                 <span className="mt-2 block text-xs leading-5 text-text-muted">{profile.description}</span>
                 <span className="mt-3 flex items-end justify-between gap-3"><span className="font-['JetBrains_Mono'] text-xs font-bold text-primary-hover">{recommendation.total ? formatCommercePrice(recommendation.total) : 'Chờ dữ liệu'}</span><span className="text-[10px] uppercase tracking-[0.08em] text-text-muted">{profile.target_resolution}</span></span>
                 <span className="mt-1 block text-[10px] text-text-muted">Ngân sách {formatCommercePrice(profile.budget_min)} – {formatCommercePrice(profile.budget_max)}</span>
@@ -354,7 +367,7 @@ export default function PcBuilder() {
           </div>
           <div className="mt-4 grid gap-4 rounded-lg border border-primary/15 bg-bg-main/55 p-4 lg:grid-cols-[minmax(0,1fr)_220px_auto] lg:items-end">
             <div>
-              <p className="font-['Sora'] text-sm font-semibold text-text-main">Tùy chỉnh ngân sách cho {activeProfile?.name || 'cấu hình'}</p>
+              <p className="font-['Be_Vietnam_Pro'] text-sm font-semibold text-text-main">Tùy chỉnh ngân sách cho {activeProfile?.name || 'cấu hình'}</p>
               <p className="mt-1 text-xs leading-5 text-text-muted">Bộ máy sẽ tự chọn lại linh kiện đang còn hàng và giữ các ràng buộc tương thích.</p>
             </div>
             <label className="block">
@@ -364,7 +377,7 @@ export default function PcBuilder() {
                 <span className="text-xs text-text-muted">triệu</span>
               </span>
             </label>
-            <button type="button" onClick={() => applyRecommendation(customRecommendation)} disabled={!customRecommendation.ready || !Number(budgetMillions)} className="luxury-primary-button flex min-h-11 items-center justify-center gap-2 rounded-md px-5 text-xs font-bold uppercase tracking-[0.06em] disabled:cursor-not-allowed disabled:opacity-40"><Sparkles size={15} aria-hidden="true" /> Tạo cấu hình</button>
+            <button type="button" onClick={() => applyRecommendation(customRecommendation)} disabled={!customRecommendation.ready || !Number(budgetMillions)} className="luxury-primary-button flex min-h-11 items-center justify-center gap-2 rounded-md px-5 text-xs font-bold uppercase tracking-[0.06em] disabled:cursor-not-allowed disabled:opacity-40"><Sparkles size={15} aria-hidden="true" /> {t('pc_builder.auto_build')}</button>
           </div>
           <p className="mt-3 text-[10px] leading-5 text-text-muted">Hồ sơ gợi ý: {profileSource === 'database' ? 'đang lấy từ Supabase để quản trị và cập nhật' : 'đang dùng cấu hình dự phòng trong ứng dụng; chạy migration mới để quản trị từ Supabase'}.</p>
         </div>
@@ -380,9 +393,9 @@ export default function PcBuilder() {
                     <div className="flex min-w-0 flex-1 items-center gap-4">
                       <span className="font-['JetBrains_Mono'] text-xs text-primary/65">{String(index + 1).padStart(2, '0')}</span>
                       <ProductVisual className={product ? 'h-20 w-24 sm:h-24 sm:w-28' : 'h-12 w-12'} icon={SlotIcon} product={product} />
-                      <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="font-['Sora'] text-sm font-bold text-text-main">{slot.label}</h2><span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] ${slot.required ? 'bg-primary/10 text-primary' : 'bg-bg-main text-text-muted'}`}>{slot.required ? 'Bắt buộc' : 'Tùy chọn'}</span></div>{product ? <><p className="mt-2 line-clamp-2 text-sm font-semibold leading-6 text-text-main">{product.name}</p><div className="mt-2 flex flex-wrap gap-2">{getPartHighlights(product).map((item) => <span key={item} className="luxury-chip rounded px-2 py-1 text-[9px]">{item}</span>)}</div></> : <p className="mt-1 text-sm text-text-muted">Chưa chọn {slot.shortLabel.toLocaleLowerCase('vi')}</p>}</div>
+                      <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="font-['Be_Vietnam_Pro'] text-sm font-bold text-text-main">{slot.label}</h2><span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] ${slot.required ? 'bg-primary/10 text-primary' : 'bg-bg-main text-text-muted'}`}>{slot.required ? 'Bắt buộc' : 'Tùy chọn'}</span></div>{product ? <><p className="mt-2 line-clamp-2 text-sm font-semibold leading-6 text-text-main">{product.name}</p><div className="mt-2 flex flex-wrap gap-2">{getPartHighlights(product).map((item) => <span key={item} className="luxury-chip rounded px-2 py-1 text-[9px]">{item}</span>)}</div></> : <p className="mt-1 text-sm text-text-muted">Chưa chọn {slot.shortLabel.toLocaleLowerCase('vi')}</p>}</div>
                     </div>
-                    <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">{product && <p className="font-['Sora'] text-sm font-bold text-primary-hover">{formatCommercePrice(product.price)}</p>}<button type="button" onClick={() => setOpenSlot(slot)} className={`${product ? 'border border-primary/30 text-primary-hover hover:bg-primary/10' : 'luxury-primary-button'} inline-flex min-h-10 items-center gap-2 rounded-md px-4 text-xs font-bold uppercase tracking-[0.06em]`}>{product ? 'Thay đổi' : 'Chọn'} <ChevronRight size={15} aria-hidden="true" /></button>{product && <button type="button" onClick={() => removePart(slot.id)} className="grid h-10 w-10 place-items-center rounded-md border border-border-subtle text-text-muted hover:border-[#d56f66]/40 hover:text-[#e7958d]" aria-label={`Bỏ ${product.name}`}><X size={16} aria-hidden="true" /></button>}</div>
+                    <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">{product && <p className="font-['Be_Vietnam_Pro'] text-sm font-bold text-primary-hover">{formatCommercePrice(product.price)}</p>}<button type="button" onClick={() => setOpenSlot(slot)} className={`${product ? 'border border-primary/30 text-primary-hover hover:bg-primary/10' : 'luxury-primary-button'} inline-flex min-h-10 items-center gap-2 rounded-md px-4 text-xs font-bold uppercase tracking-[0.06em]`}>{product ? t('pc_builder.change') : t('pc_builder.select_component')} <ChevronRight size={15} aria-hidden="true" /></button>{product && <button type="button" onClick={() => removePart(slot.id)} className="grid h-10 w-10 place-items-center rounded-md border border-border-subtle text-text-muted hover:border-[#d56f66]/40 hover:text-[#e7958d]" aria-label={t('pc_builder.remove')}><X size={16} aria-hidden="true" /></button>}</div>
                   </div>
                 </article>
               );
@@ -410,8 +423,8 @@ export default function PcBuilder() {
               {selectedProducts.length === 0 && <p className="text-sm leading-6 text-text-muted">Bắt đầu bằng CPU hoặc chọn nhanh một cấu hình gợi ý.</p>}
             </div>
 
-            <div className="py-5"><div className="flex items-center justify-between text-sm text-text-muted"><span className="flex items-center gap-2"><WalletCards size={17} className="text-primary" aria-hidden="true" /> Tổng dự toán</span><span className="font-['Sora'] text-xl font-bold text-primary-hover">{total ? formatCommercePrice(total) : '0 ₫'}</span></div><p className="mt-2 text-[10px] leading-5 text-text-muted">Giá lấy trực tiếp từ dữ liệu sản phẩm và có thể thay đổi theo thời điểm.</p></div>
-            <button type="button" onClick={addBuildToCart} disabled={!isReady} className="luxury-primary-button flex min-h-12 w-full items-center justify-center gap-2 rounded-md text-xs font-bold uppercase tracking-[0.08em] disabled:cursor-not-allowed disabled:opacity-40"><ShoppingCart size={17} aria-hidden="true" /> Thêm cấu hình vào giỏ</button>
+            <div className="py-5"><div className="flex items-center justify-between text-sm text-text-muted"><span className="flex items-center gap-2"><WalletCards size={17} className="text-primary" aria-hidden="true" /> {t('pc_builder.total_budget')}</span><span className="font-['Be_Vietnam_Pro'] text-xl font-bold text-primary-hover">{total ? formatCommercePrice(total) : '0 ₫'}</span></div><p className="mt-2 text-[10px] leading-5 text-text-muted">Giá lấy trực tiếp từ dữ liệu sản phẩm và có thể thay đổi theo thời điểm.</p></div>
+            <button type="button" onClick={addBuildToCart} disabled={!isReady} className="luxury-primary-button flex min-h-12 w-full items-center justify-center gap-2 rounded-md text-xs font-bold uppercase tracking-[0.08em] disabled:cursor-not-allowed disabled:opacity-40"><ShoppingCart size={17} aria-hidden="true" /> {t('pc_builder.add_to_cart')}</button>
           </aside>
         </div>
       </section>
