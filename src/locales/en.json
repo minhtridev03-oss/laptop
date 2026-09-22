@@ -101,7 +101,8 @@
     "unavailable_warning": "Some items in your cart are out of stock or discontinued.",
     "free_ship_info": "free shipping",
     "more_for_free_ship": "Add {{amount}} more for",
-    "items_count": "{{count}} items"
+    "items_count": "{{count}} items",
+    "added_to_cart": "{{name}} added to cart!"
   },
   "products": {
     "title": "Products",

@@ -167,9 +167,7 @@ export default function Checkout() {
         {cart.length === 0 ? (
           <div className="luxury-panel rounded-[10px] px-6 py-14 text-center"><PackageCheck size={40} className="mx-auto mb-4 text-primary" aria-hidden="true" /><h2 className="luxury-heading mb-5 text-xl">Không có sản phẩm để thanh toán</h2><Link to="/products" className="luxury-primary-button inline-flex min-h-11 items-center rounded-md px-6 text-xs font-bold uppercase">Xem sản phẩm</Link></div>
         ) : (
-          <form onSubmit={handleSubmit}
-            style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.75rem', alignItems: 'start' }}
-            className="lg:[grid-template-columns:1fr_360px]">
+          <form onSubmit={handleSubmit} className="flex flex-col-reverse gap-7 lg:grid lg:items-start lg:[grid-template-columns:1fr_360px]">
             <div className="luxury-panel rounded-[10px] p-5 sm:p-7">
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field label={t('checkout.full_name')} name="fullName" value={form.fullName} onChange={updateField} autoComplete="name" required />
@@ -182,7 +180,7 @@ export default function Checkout() {
 
               <fieldset className="mt-7 border-t border-border-subtle pt-6">
                 <legend className="mb-4 font-['Be_Vietnam_Pro'] text-sm font-bold text-text-main">{t('checkout.payment_method')}</legend>
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {paymentMethods.map((method) => {
                     const Icon = PAYMENT_ICONS[method.code] || CreditCard;
                     return (
@@ -196,8 +194,7 @@ export default function Checkout() {
               </fieldset>
             </div>
 
-            <aside className="luxury-panel rounded-[10px] p-6 lg:sticky lg:top-[108px]"
-              style={{ alignSelf: 'start' }}>
+            <aside className="luxury-panel rounded-[10px] p-5 sm:p-6 lg:sticky lg:top-[108px]">
               <p className="luxury-eyebrow mb-2">ĐƠN HÀNG</p>
               <h2 className="luxury-heading mb-5 text-lg">{cart.length} sản phẩm</h2>
               <div className="custom-scrollbar max-h-72 space-y-3 overflow-y-auto pr-1">

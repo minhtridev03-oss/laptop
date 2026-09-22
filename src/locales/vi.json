@@ -101,7 +101,8 @@
     "unavailable_warning": "Một số sản phẩm trong giỏ hàng đã hết hàng hoặc ngừng kinh doanh.",
     "free_ship_info": "miễn phí vận chuyển",
     "more_for_free_ship": "Mua thêm {{amount}} để được",
-    "items_count": "{{count}} sản phẩm"
+    "items_count": "{{count}} sản phẩm",
+    "added_to_cart": "Đã thêm {{name}} vào giỏ hàng!"
   },
   "products": {
     "title": "Sản phẩm",

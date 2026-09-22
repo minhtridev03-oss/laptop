@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { 
@@ -86,24 +86,14 @@ export default function ProductList() {
   const [seriesLinksError, setSeriesLinksError] = useState(null);
   const [priceRange, setPriceRange] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(0);
   const [error, setError] = useState(null);
-  const loadMoreRef = useRef(null);
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const query = (searchParams.get('q') ?? '').trim();
   const requestedSeriesId = searchParams.get('series');
   const requestedSort = searchParams.get('sort') ?? 'featured';
   const sort = sortOptions.some((option) => option.id === requestedSort) ? requestedSort : 'featured';
 
-  // Reset page when filters/route change
-  useEffect(() => {
-    setProducts([]);
-    setPage(0);
-    setHasMore(true);
-  }, [categoryId, query, sort, priceRange, requestedSeriesId]);
-
-  // Fetch catalog metadata (categories + series links) once
+  // Fetch catalog metadata (categories + series links) — runs once
   useEffect(() => {
     let ignore = false;
     async function fetchMeta() {
@@ -126,48 +116,33 @@ export default function ProductList() {
     return () => { ignore = true; };
   }, []);
 
-  // Paginated product fetch - triggered by page state
-  const fetchPage = useCallback(async (pageIndex) => {
-    if (pageIndex === 0) setLoading(true);
-    else setLoadingMore(true);
+  // Fetch all active products (up to 1000) — re-runs only when route changes
+  const fetchPage = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      let queryBuilder = supabase
+      const { data, error: fetchError } = await supabase
         .from('products')
         .select(PRODUCT_COLUMNS)
         .eq('status', 'active')
         .order('sort_order', { ascending: true })
-        .range(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE - 1);
-
-      const { data, error: fetchError } = await queryBuilder;
+        .limit(1000);
       if (fetchError) throw fetchError;
-      const rows = data ?? [];
-      setProducts((prev) => pageIndex === 0 ? rows : [...prev, ...rows]);
-      setHasMore(rows.length === PAGE_SIZE);
+      setProducts(data ?? []);
     } catch (err) {
-      if (pageIndex === 0) setError(err);
+      setError(err);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
   }, []);
 
-  useEffect(() => { fetchPage(page); }, [fetchPage, page]);
-
-  // IntersectionObserver to auto-load next page when sentinel is visible
+  // Only refetch when ROUTE changes (category/series) — NOT when sort/price/query change
   useEffect(() => {
-    const sentinel = loadMoreRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          setPage((prev) => prev + 1);
-        }
-      },
-      { rootMargin: '300px' }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMore, loading, loadingMore]);
+    setProducts([]);
+    fetchPage();
+  }, [categoryId, requestedSeriesId, fetchPage]);
+
+
 
   const seriesEntries = useMemo(() => categories.flatMap((categoryItem) => (
     (categoryItem.category_groups ?? []).flatMap((group) => (
@@ -207,17 +182,29 @@ export default function ProductList() {
     let result = products.filter((product) => {
       const matchesCategory = !resolvedCategoryId || String(product.category_id) === String(resolvedCategoryId);
       const matchesSeries = !activeSeriesId || relatedProductIds.has(String(product.id));
-      const matchesQuery = !normalizedQuery || product.name?.toLocaleLowerCase('vi').includes(normalizedQuery);
+      const matchesQuery = !normalizedQuery ||
+        product.name?.toLocaleLowerCase('vi').includes(normalizedQuery) ||
+        product.spec_cpu?.toLocaleLowerCase('vi').includes(normalizedQuery) ||
+        product.spec_ram?.toLocaleLowerCase('vi').includes(normalizedQuery) ||
+        product.spec_gpu?.toLocaleLowerCase('vi').includes(normalizedQuery) ||
+        product.spec_storage?.toLocaleLowerCase('vi').includes(normalizedQuery);
       const matchesPrice = activeRange.test(Number(product.price) || 0);
       return matchesCategory && matchesSeries && matchesQuery && matchesPrice;
     });
 
-    if (sort === 'flash-sale') result = result.filter((product) => product.is_flash_sale);
-    if (sort === 'best-seller') result = result.filter((product) => product.is_best_seller);
-    if (sort === 'newest') result = result.filter((product) => product.is_new);
-    if (sort === 'price-asc') result = [...result].sort((a, b) => Number(a.price) - Number(b.price));
-    if (sort === 'price-desc') result = [...result].sort((a, b) => Number(b.price) - Number(a.price));
+    // Sort — does NOT remove products, just reorders them
+    if (sort === 'price-asc')
+      return [...result].sort((a, b) => Number(a.price) - Number(b.price));
+    if (sort === 'price-desc')
+      return [...result].sort((a, b) => Number(b.price) - Number(a.price));
+    if (sort === 'newest')
+      return [...result].sort((a, b) => (b.is_new ? 1 : 0) - (a.is_new ? 1 : 0));
+    if (sort === 'best-seller')
+      return [...result].sort((a, b) => (b.is_best_seller ? 1 : 0) - (a.is_best_seller ? 1 : 0));
+    if (sort === 'flash-sale')
+      return [...result].sort((a, b) => (b.is_flash_sale ? 1 : 0) - (a.is_flash_sale ? 1 : 0));
 
+    // 'featured' — keep server order (sort_order)
     return result;
   }, [activeSeriesId, priceRange, products, query, relatedProductIds, resolvedCategoryId, sort]);
 
@@ -256,21 +243,43 @@ export default function ProductList() {
                 {loading ? 'Đang cập nhật danh mục...' : `${filteredProducts.length} sản phẩm phù hợp`}
               </p>
             </div>
-            <label className="flex min-h-11 items-center gap-3 rounded-md border border-border-subtle bg-bg-card/80 px-3 text-xs text-text-muted">
-              <SlidersHorizontal size={16} className="text-primary" aria-hidden="true" />
-              <span className="sr-only sm:not-sr-only">{t('common.sort')}</span>
-              <select
-                value={sort}
-                onChange={handleSortChange}
-                className="min-w-[155px] bg-transparent py-2 font-semibold text-text-main outline-none"
-                aria-label="Sắp xếp sản phẩm"
+            <div className="relative">
+              <button 
+                type="button" 
+                onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                onBlur={() => setTimeout(() => setSortDropdownOpen(false), 200)}
+                className="flex min-h-11 items-center gap-3 rounded-md border border-border-subtle bg-bg-card/80 px-4 text-xs font-semibold text-text-main transition-colors hover:border-primary/50 focus:border-primary/50 focus:outline-none"
               >
-                <option value="featured" className="bg-bg-card">{t('products.sort_relevance')}</option>
-                <option value="newest" className="bg-bg-card">{t('products.sort_newest')}</option>
-                <option value="price-asc" className="bg-bg-card">{t('products.sort_price_asc')}</option>
-                <option value="price-desc" className="bg-bg-card">{t('products.sort_price_desc')}</option>
-              </select>
-            </label>
+                <SlidersHorizontal size={16} className="text-primary" aria-hidden="true" />
+                <span className="sr-only sm:not-sr-only">{t('common.sort')}:</span>
+                {sort === 'featured' && t('products.sort_relevance')}
+                {sort === 'newest' && t('products.sort_newest')}
+                {sort === 'price-asc' && t('products.sort_price_asc')}
+                {sort === 'price-desc' && t('products.sort_price_desc')}
+                {sort === 'best-seller' && 'Bán chạy'}
+                {sort === 'flash-sale' && 'Đang ưu đãi'}
+                <ChevronDown size={14} className={`ml-1 text-text-muted transition-transform ${sortDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              <div className={`absolute right-0 top-full z-50 mt-2 w-52 origin-top-right flex-col overflow-hidden rounded-md border border-border-subtle bg-[#141412] shadow-2xl transition-all ${sortDropdownOpen ? 'flex opacity-100 scale-100' : 'pointer-events-none hidden opacity-0 scale-95'}`}>
+                {sortOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => {
+                      const event = { target: { value: option.id } };
+                      handleSortChange(event);
+                      setSortDropdownOpen(false);
+                    }}
+                    className={`px-4 py-3 text-left text-sm font-medium transition-colors ${
+                      sort === option.id ? 'bg-primary/[0.08] text-primary-hover border-l-2 border-primary' : 'border-l-2 border-transparent text-text-muted hover:bg-bg-main/50 hover:text-text-main'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -377,33 +386,7 @@ export default function ProductList() {
           </div>
 
           <div className="min-w-0">
-            <div className="mb-5 flex flex-wrap items-center gap-2">
-              <span className="flex items-center pr-2 text-xs font-semibold text-text-muted">Lọc nhanh:</span>
-              {[
-                { label: 'Core i5', q: 'i5' },
-                { label: 'Core i7', q: 'i7' },
-                { label: 'RAM 8GB', q: '8gb' },
-                { label: 'RAM 16GB', q: '16gb' },
-                { label: 'RTX 4060', q: '4060' },
-              ].map((qf) => (
-                <button
-                  key={qf.label}
-                  type="button"
-                  onClick={() => {
-                    const nextParams = new URLSearchParams(searchParams);
-                    if (query.toLocaleLowerCase('vi').includes(qf.q)) {
-                      nextParams.delete('q');
-                    } else {
-                      nextParams.set('q', qf.label);
-                    }
-                    setSearchParams(nextParams);
-                  }}
-                  className={`luxury-chip cursor-pointer rounded-full px-3 py-1.5 transition-colors hover-lift ${query.toLocaleLowerCase('vi').includes(qf.q) ? 'border-primary/50 bg-primary/10 text-primary-hover' : 'hover:border-primary/30 hover:text-text-main'}`}
-                >
-                  {qf.label}
-                </button>
-              ))}
-            </div>
+            {/* Lọc nhanh section removed as requested */}
 
             {loading ? (
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-5" role="status" aria-label="Đang tải sản phẩm">
@@ -451,13 +434,7 @@ export default function ProductList() {
                     ))}
                   </AnimatePresence>
                 </motion.div>
-                {/* Sentinel for IntersectionObserver – triggers load more */}
-                <div ref={loadMoreRef} className="h-4" aria-hidden="true" />
-                {loadingMore && (
-                  <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-5" role="status" aria-label="Đang tải thêm">
-                    {[0,1,2].map((i) => <div key={i} className="luxury-panel h-[390px] animate-pulse rounded-[10px]" />)}
-                  </div>
-                )}
+
               </>
             ) : (
               <div className="luxury-panel rounded-[10px] px-6 py-16 text-center">

@@ -219,6 +219,27 @@ export default function Home() {
       </Helmet>
 
       <section className="luxury-page-section mx-auto w-full max-w-[1920px] px-4 pb-14 pt-6 lg:px-6 2xl:px-8 lg:pt-8">
+        {/* Mobile category chips — horizontal scroll, hidden on desktop */}
+        {categories.length > 0 && (
+          <div className="mb-4 -mx-4 px-4 lg:hidden">
+            <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {categories.map((category) => {
+                const Icon = iconMap[category.icon];
+                return (
+                  <Link
+                    key={category.id}
+                    to={`/category/${category.id}`}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-border-subtle bg-bg-card px-3 py-2 text-[11px] font-semibold text-text-muted transition-colors hover:border-primary/40 hover:text-primary-hover"
+                  >
+                    {Icon && <Icon size={13} className="text-primary/75" aria-hidden="true" />}
+                    {category.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="relative z-30 flex flex-col gap-3 lg:flex-row">
           <nav
             className="luxury-panel relative z-40 hidden h-[520px] w-[280px] shrink-0 self-start flex-col rounded-[10px] lg:flex"
@@ -313,11 +334,11 @@ export default function Home() {
                   <div className="absolute inset-0 flex items-center bg-gradient-to-r from-[#090907]/95 via-[#090907]/65 to-transparent p-7 md:p-12">
                     <div className="max-w-xl">
                       {activeBanner.tag && <span className="luxury-eyebrow mb-6 inline-flex rounded border border-primary/40 bg-bg-main/55 px-3 py-2 backdrop-blur">{activeBanner.tag}</span>}
-                      <h1 className="luxury-heading mb-5 text-3xl leading-[1.12] sm:text-4xl md:text-5xl">
+                      <h1 className="luxury-heading mb-5 text-xl leading-[1.12] sm:text-3xl md:text-5xl">
                         {activeBanner.title1}<br />
                         <span className="luxury-gold-text">{activeBanner.title2}</span>
                       </h1>
-                      {activeBanner.description && <p className="mb-8 max-w-lg whitespace-pre-line text-sm leading-7 text-text-muted md:text-base">{activeBanner.description}</p>}
+                      {activeBanner.description && <p className="mb-6 hidden max-w-lg whitespace-pre-line text-sm leading-7 text-text-muted sm:block md:text-base">{activeBanner.description}</p>}
                       <Link
                         to={activeBanner.link_url || '/products'}
                         className="luxury-primary-button inline-flex min-h-11 items-center gap-2 rounded-md px-6 text-xs font-bold uppercase tracking-[0.1em]"
@@ -356,12 +377,12 @@ export default function Home() {
             )}
 
             {!loadingBanners && subBanners.length > 0 && (
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 xs:grid-cols-2 md:grid-cols-3">
                 {subBanners.map((banner) => (
                   <Link
                     key={banner.id}
                     to={banner.link_url || '/products'}
-                    className={`luxury-panel hover-lift group relative h-[150px] overflow-hidden rounded-[10px] ${banner.hidden_on_mobile ? 'hidden md:block' : ''}`}
+                    className={`luxury-panel hover-lift group relative h-[140px] overflow-hidden rounded-[10px] sm:h-[150px] ${banner.hidden_on_mobile ? 'hidden md:block' : ''}`}
                   >
                     <img src={banner.image_url} alt={banner.title1 || banner.tag || 'Bộ sưu tập sản phẩm'} loading="lazy" decoding="async" className="h-full w-full object-cover opacity-55 transition-transform duration-500 group-hover:scale-105" />
                     <span className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-bg-main via-bg-main/25 to-transparent p-4">
