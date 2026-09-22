@@ -182,10 +182,19 @@ export default function Home() {
     <>
       <Helmet>
         <title>Laptop World | Laptop, PC & linh kiện cao cấp</title>
+        <link rel="canonical" href={`${window.location.origin}/`} />
         <meta
           name="description"
           content="Laptop, PC và linh kiện chính hãng tuyển chọn. Cấu hình minh bạch, tư vấn chuyên sâu và bảo hành uy tín tại Laptop World."
         />
+        <script type="application/ld+json">{JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'Store',
+          name: 'Laptop World',
+          url: `${window.location.origin}/`,
+          telephone: '0961.56.0888',
+          address: { '@type': 'PostalAddress', streetAddress: '10 Ngõ 117 Thái Hà', addressLocality: 'Hà Nội', addressCountry: 'VN' },
+        })}</script>
       </Helmet>
 
       <section className="luxury-page-section mx-auto w-full max-w-[1440px] px-4 pb-14 pt-6 lg:px-6 lg:pt-8">

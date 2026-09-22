@@ -1,5 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { isCommerceProductPurchasable, toCommerceProduct } from '../lib/commerce';
+import { useAuth } from './AuthContext';
+import {
+  loadCustomerCommerce,
+  mergeCustomerCart,
+  mergeCustomerWishlist,
+  syncCustomerCart,
+  syncCustomerWishlist,
+} from '../services/customerService';
 
 const CommerceContext = createContext(null);
 const STORAGE_KEYS = {
@@ -28,18 +36,84 @@ const writeStorage = (key, value) => {
 };
 
 export function CommerceProvider({ children }) {
+  const { loading: authLoading, user } = useAuth();
   const [cart, setCart] = useState(() => readStorage(STORAGE_KEYS.cart));
   const [wishlist, setWishlist] = useState(() => readStorage(STORAGE_KEYS.wishlist));
   const [compare, setCompare] = useState(() => readStorage(STORAGE_KEYS.compare));
   const [recentlyViewed, setRecentlyViewed] = useState(() => readStorage(STORAGE_KEYS.recent));
   const [notification, setNotification] = useState(null);
+  const [commerceSyncing, setCommerceSyncing] = useState(false);
+  const [commerceSyncError, setCommerceSyncError] = useState(null);
+  const [remoteSyncUserId, setRemoteSyncUserId] = useState(null);
   const noticeTimer = useRef(null);
+  const cartSyncTimer = useRef(null);
+  const wishlistSyncTimer = useRef(null);
+  const previousUserId = useRef(null);
 
   useEffect(() => writeStorage(STORAGE_KEYS.cart, cart), [cart]);
   useEffect(() => writeStorage(STORAGE_KEYS.wishlist, wishlist), [wishlist]);
   useEffect(() => writeStorage(STORAGE_KEYS.compare, compare), [compare]);
   useEffect(() => writeStorage(STORAGE_KEYS.recent, recentlyViewed), [recentlyViewed]);
-  useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
+  useEffect(() => () => {
+    window.clearTimeout(noticeTimer.current);
+    window.clearTimeout(cartSyncTimer.current);
+    window.clearTimeout(wishlistSyncTimer.current);
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return undefined;
+    let ignore = false;
+
+    if (!user?.id) {
+      if (previousUserId.current) {
+        setCart([]);
+        setWishlist([]);
+      }
+      previousUserId.current = null;
+      setRemoteSyncUserId(null);
+      setCommerceSyncError(null);
+      setCommerceSyncing(false);
+      return undefined;
+    }
+
+    previousUserId.current = user.id;
+    setCommerceSyncing(true);
+    setCommerceSyncError(null);
+    loadCustomerCommerce(user.id)
+      .then((remote) => {
+        if (ignore) return;
+        setCart((local) => mergeCustomerCart(local, remote.cart));
+        setWishlist((local) => mergeCustomerWishlist(local, remote.wishlist));
+        setRemoteSyncUserId(user.id);
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setCommerceSyncError(error);
+          setRemoteSyncUserId(null);
+        }
+      })
+      .finally(() => { if (!ignore) setCommerceSyncing(false); });
+
+    return () => { ignore = true; };
+  }, [authLoading, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || remoteSyncUserId !== user.id) return undefined;
+    window.clearTimeout(cartSyncTimer.current);
+    cartSyncTimer.current = window.setTimeout(() => {
+      syncCustomerCart(cart).catch(setCommerceSyncError);
+    }, 350);
+    return () => window.clearTimeout(cartSyncTimer.current);
+  }, [cart, remoteSyncUserId, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || remoteSyncUserId !== user.id) return undefined;
+    window.clearTimeout(wishlistSyncTimer.current);
+    wishlistSyncTimer.current = window.setTimeout(() => {
+      syncCustomerWishlist(wishlist).catch(setCommerceSyncError);
+    }, 350);
+    return () => window.clearTimeout(wishlistSyncTimer.current);
+  }, [remoteSyncUserId, user?.id, wishlist]);
 
   const notify = useCallback((message, tone = 'success') => {
     window.clearTimeout(noticeTimer.current);
@@ -134,6 +208,8 @@ export function CommerceProvider({ children }) {
     compare,
     recentlyViewed,
     notification,
+    commerceSyncing,
+    commerceSyncError,
     addToCart,
     updateCartQuantity,
     removeFromCart,
@@ -150,6 +226,8 @@ export function CommerceProvider({ children }) {
     cart,
     cartCount,
     cartSubtotal,
+    commerceSyncError,
+    commerceSyncing,
     clearCart,
     compare,
     compareIds,

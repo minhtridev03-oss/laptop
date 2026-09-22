@@ -31,6 +31,8 @@ import {
 import { supabase } from '../lib/supabase';
 import { useCommerce } from '../context/CommerceContext';
 import { isCommerceProductPurchasable } from '../lib/commerce';
+import ProductReviews from '../components/product/ProductReviews';
+import ProductAlerts from '../components/product/ProductAlerts';
 import './ProductDetail.css';
 
 const SPEC_LABELS = {
@@ -541,6 +543,25 @@ export default function ProductDetail() {
   const primaryImage = images[0];
   const wished = isWishlisted(product.id);
   const compared = isCompared(product.id);
+  const canonicalUrl = `${window.location.origin}/product/${encodeURIComponent(product.id)}`;
+  const productStructuredData = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    image: images,
+    description: seoDescription,
+    sku: String(sku),
+    brand: product.brand ? { '@type': 'Brand', name: product.brand } : undefined,
+    category: categoryName || undefined,
+    offers: priceValue !== null ? {
+      '@type': 'Offer',
+      url: canonicalUrl,
+      priceCurrency: 'VND',
+      price: priceValue,
+      availability: canPurchase ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      itemCondition: 'https://schema.org/NewCondition',
+    } : undefined,
+  }).replace(/</g, '\\u003c');
 
   const buyNow = () => {
     addToCart(product, quantity);
@@ -554,6 +575,8 @@ export default function ProductDetail() {
       <meta property="og:title" content={`${product.name} | Laptop World`} />
       <meta property="og:description" content={seoDescription} />
       {primaryImage && <meta property="og:image" content={primaryImage} />}
+      <link rel="canonical" href={canonicalUrl} />
+      <script type="application/ld+json">{productStructuredData}</script>
     </Helmet>
     <div className="pd-page">
       <div className="pd-grid-overlay" aria-hidden="true" />
@@ -625,6 +648,8 @@ export default function ProductDetail() {
             youtubeLink={product.youtube_link ?? product.youtubeUrl} />
           <RelatedProducts products={relatedProducts} />
         </div>
+        <ProductReviews productId={product.id} />
+        <ProductAlerts currentPrice={priceValue} productId={product.id} stockAvailable={canPurchase} />
       </div>
       <div className="pd-mobile-bar"><div><span>Giá sản phẩm</span><strong>{price ?? 'Liên hệ'}</strong></div>
         <button type="button" className="pd-button pd-button--primary" disabled={!canPurchase} onClick={() => addToCart(product, quantity)}>

@@ -17,7 +17,7 @@ const translateAuthError = (error) => {
 };
 
 export default function AuthModal({ open, onClose }) {
-  const { loading: sessionLoading, signIn, signOut, signUp, user } = useAuth();
+  const { loading: sessionLoading, sendPasswordReset, signIn, signOut, signUp, user } = useAuth();
   const [mode, setMode] = useState('login');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -101,6 +101,20 @@ export default function AuthModal({ open, onClose }) {
       return;
     }
     onClose();
+  };
+
+  const handlePasswordReset = async () => {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      setMessage({ tone: 'error', text: 'Nhập email tài khoản trước khi yêu cầu đổi mật khẩu.' });
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await sendPasswordReset(normalizedEmail);
+    setSubmitting(false);
+    setMessage(error
+      ? { tone: 'error', text: 'Chưa thể gửi email đổi mật khẩu. Vui lòng thử lại.' }
+      : { tone: 'success', text: 'Đã gửi liên kết đổi mật khẩu tới email của bạn.' });
   };
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Khách hàng';
@@ -209,6 +223,7 @@ export default function AuthModal({ open, onClose }) {
                 {submitting && <LoaderCircle size={17} className="animate-spin" aria-hidden="true" />}
                 {mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}
               </button>
+              {!isRegister && <button type="button" onClick={handlePasswordReset} disabled={submitting} className="text-xs font-semibold text-text-muted transition-colors hover:text-primary-hover disabled:opacity-50">Quên mật khẩu?</button>}
             </form>
 
             <p className="mt-4 flex items-start gap-2 border-t border-border-subtle pt-4 text-[11px] leading-5 text-text-muted"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-primary/70" aria-hidden="true" /> Mật khẩu được Supabase Auth xử lý bảo mật và không được lưu trong giao diện website.</p>
