@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { toCommerceProduct } from '../lib/commerce';
+import { isCommerceProductPurchasable, toCommerceProduct } from '../lib/commerce';
 
 const CommerceContext = createContext(null);
 const STORAGE_KEYS = {
@@ -50,6 +50,10 @@ export function CommerceProvider({ children }) {
   const addToCart = useCallback((rawProduct, quantity = 1) => {
     const product = toCommerceProduct(rawProduct);
     if (!product.id) return;
+    if (!isCommerceProductPurchasable(product)) {
+      notify(`${product.name} đang hết hàng`, 'warning');
+      return;
+    }
     const safeQuantity = Math.max(1, Math.min(10, Number(quantity) || 1));
     setCart((current) => {
       const existing = current.find((item) => item.product.id === product.id);
