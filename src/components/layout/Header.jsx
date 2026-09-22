@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Clock3, Heart, MapPin, Menu, Scale, Search, ShoppingBag, UserRound, X } from 'lucide-react';
+import { Clock3, Heart, MapPin, Menu, Scale, Search, ShoppingBag, UserRound, Wrench, X } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 import { useAuth } from '../../context/AuthContext';
 import AuthModal from '../auth/AuthModal';
@@ -72,6 +72,9 @@ export default function Header() {
               <UserRound size={13} className="text-primary" aria-hidden="true" />
               {user ? 'Tài khoản' : 'Đăng nhập'}
             </button>
+            <Link to="/build-pc" className="flex items-center gap-1.5 font-semibold text-primary-hover transition-colors hover:text-primary">
+              <Wrench size={13} aria-hidden="true" /> Build PC
+            </Link>
             <Link to="/products" className="hidden transition-colors hover:text-primary-hover sm:block">Sản phẩm</Link>
           </nav>
         </div>
@@ -149,6 +152,9 @@ export default function Header() {
           <div className="luxury-panel grid overflow-hidden rounded-[10px]">
             <Link to="/products" onClick={() => setMobileMenuOpen(false)} className="flex min-h-12 items-center justify-between border-b border-border-subtle px-4 text-sm font-semibold text-text-main hover:text-primary-hover">
               Tất cả sản phẩm <Search size={16} className="text-primary" aria-hidden="true" />
+            </Link>
+            <Link to="/build-pc" onClick={() => setMobileMenuOpen(false)} className="flex min-h-12 items-center justify-between border-b border-border-subtle px-4 text-sm font-semibold text-primary-hover">
+              Tự build PC <Wrench size={16} className="text-primary" aria-hidden="true" />
             </Link>
             <Link to="/wishlist" onClick={() => setMobileMenuOpen(false)} className="flex min-h-12 items-center justify-between border-b border-border-subtle px-4 text-sm font-semibold text-text-main hover:text-primary-hover">
               Sản phẩm yêu thích <span className="flex items-center gap-2 text-primary"><span>{wishlist.length}</span><Heart size={16} aria-hidden="true" /></span>

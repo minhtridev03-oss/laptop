@@ -8,6 +8,7 @@ import Checkout from './pages/Checkout';
 import Compare from './pages/Compare';
 import SavedProducts from './pages/SavedProducts';
 import OrderLookup from './pages/OrderLookup';
+import PcBuilder from './pages/PcBuilder';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
           <Route path="recently-viewed" element={<SavedProducts mode="recent" />} />
           <Route path="compare" element={<Compare />} />
           <Route path="order-lookup" element={<OrderLookup />} />
+          <Route path="build-pc" element={<PcBuilder />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
