@@ -105,7 +105,9 @@ export default function ProductList() {
   const legacySeries = useMemo(() => {
     if (requestedSeriesId || !categoryId) return null;
     return seriesEntries.find((item) => {
-      const legacyPath = item.link_url?.split('?')[0]?.replace(/\/$/, '');
+      const itemLink = item.link_url?.trim();
+      if (!itemLink || itemLink.includes('series=')) return false;
+      const legacyPath = itemLink.split('?')[0].replace(/\/$/, '');
       return legacyPath === `/category/${categoryId}`;
     }) ?? null;
   }, [categoryId, requestedSeriesId, seriesEntries]);
