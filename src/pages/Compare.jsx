@@ -1,14 +1,26 @@
+import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import { ImageOff, PackagePlus, Scale, ShoppingBag, X } from 'lucide-react';
+import { Award, BarChart3, CheckCircle2, ImageOff, Info, PackagePlus, Scale, ShieldCheck, ShoppingBag, X } from 'lucide-react';
 import { useCommerce } from '../context/CommerceContext';
 import { formatCommercePrice } from '../lib/commerce';
+import { COMPARISON_MODES, getComparableSpecValue, scoreComparison } from '../lib/comparison';
 
 const SPEC_LABELS = { cpu: 'Bộ xử lý', ram: 'RAM', storage: 'Lưu trữ', gpu: 'Card đồ họa' };
 
 export default function Compare() {
   const { addToCart, compare, toggleCompare } = useCommerce();
-  const specKeys = [...new Set(compare.flatMap((product) => Object.keys(product.specs ?? {}).filter((key) => product.specs[key])))];
+  const [mode, setMode] = useState('overall');
+  const specKeys = useMemo(() => [...new Set(compare.flatMap((product) => Object.keys(product.specs ?? {}).filter((key) => product.specs[key])))], [compare]);
+  const activeMode = COMPARISON_MODES.find((item) => item.id === mode) ?? COMPARISON_MODES[0];
+  const scoredProducts = useMemo(() => scoreComparison(compare, mode), [compare, mode]);
+  const scoreById = useMemo(() => new Map(scoredProducts.map((item) => [item.id, item])), [scoredProducts]);
+  const winner = compare.find((product) => product.id === scoredProducts[0]?.id);
+  const lowestPrice = Math.min(...compare.map((product) => Number(product.price) || Number.POSITIVE_INFINITY));
+  const bestSpecValues = useMemo(() => Object.fromEntries(specKeys.map((key) => [
+    key,
+    Math.max(...compare.map((product) => getComparableSpecValue(key, product.specs?.[key]))),
+  ])), [compare, specKeys]);
 
   return (
     <>
@@ -17,7 +29,7 @@ export default function Compare() {
         <div className="mb-8 border-b border-border-subtle pb-6">
           <p className="luxury-eyebrow mb-3">ĐỐI CHIẾU CẤU HÌNH</p>
           <h1 className="luxury-heading flex items-center gap-3 text-3xl"><Scale className="text-primary" aria-hidden="true" /> So sánh sản phẩm</h1>
-          <p className="mt-2 text-sm text-text-muted">Chọn tối đa 4 sản phẩm để so sánh thông số và mức giá.</p>
+          <p className="mt-2 text-sm text-text-muted">Chọn tối đa 4 sản phẩm để đối chiếu thông số, mức giá và điểm phù hợp theo nhu cầu.</p>
         </div>
 
         {compare.length === 0 ? (
@@ -29,10 +41,43 @@ export default function Compare() {
           </div>
         ) : (
           <>
-            {compare.length < 2 && <div className="mb-5 rounded-md border border-primary/20 bg-primary/[0.05] px-4 py-3 text-sm text-text-muted">Thêm ít nhất một sản phẩm nữa để đối chiếu rõ hơn.</div>}
+            <div className="luxury-panel mb-6 rounded-[10px] p-5 lg:p-6">
+              <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+                <div>
+                  <p className="luxury-eyebrow mb-2">MỤC ĐÍCH SỬ DỤNG</p>
+                  <h2 className="luxury-heading text-lg">Chấm điểm theo nhu cầu của bạn</h2>
+                  <p className="mt-2 text-sm text-text-muted">{activeMode.description}</p>
+                </div>
+                <div className="flex flex-wrap gap-2" role="tablist" aria-label="Chọn nhu cầu so sánh">
+                  {COMPARISON_MODES.map((item) => (
+                    <button key={item.id} type="button" role="tab" aria-selected={mode === item.id} onClick={() => setMode(item.id)} className={`min-h-10 rounded-md border px-4 text-xs font-bold uppercase tracking-[0.06em] transition-colors ${mode === item.id ? 'border-primary/55 bg-primary/15 text-primary-hover' : 'border-border-subtle bg-bg-main/60 text-text-muted hover:border-primary/35 hover:text-text-main'}`}>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {compare.length >= 2 && winner && (
+                <div className="mt-5 grid gap-4 border-t border-border-subtle pt-5 md:grid-cols-[auto_1fr_auto] md:items-center">
+                  <span className="grid h-12 w-12 place-items-center rounded-xl border border-primary/30 bg-primary/[0.08] text-primary-hover"><Award size={23} aria-hidden="true" /></span>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.08em] text-primary">Phù hợp nhất · {activeMode.label}</p>
+                    <p className="mt-1 line-clamp-2 font-['Sora'] text-sm font-semibold text-text-main">{winner.name}</p>
+                  </div>
+                  <span className="font-['JetBrains_Mono'] text-2xl font-bold text-primary-hover">{scoredProducts[0].score}<small className="text-xs text-text-muted">/100</small></span>
+                </div>
+              )}
+
+              <details className="mt-5 border-t border-border-subtle pt-4 text-sm text-text-muted">
+                <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-text-main hover:text-primary-hover"><Info size={16} className="text-primary" aria-hidden="true" /> Cách hệ thống tính điểm</summary>
+                <p className="mt-3 max-w-4xl leading-6">Đây là đánh giá theo quy tắc, không sử dụng AI. Hệ thống quy đổi CPU, GPU, RAM và dung lượng lưu trữ thành điểm kỹ thuật; sau đó áp dụng trọng số của từng nhu cầu và cộng điểm hiệu quả trên giá bán. Thông số thiếu sẽ không được cộng điểm.</p>
+              </details>
+            </div>
+
+            {compare.length < 2 && <div className="mb-5 rounded-md border border-primary/20 bg-primary/[0.05] px-4 py-3 text-sm text-text-muted">Thêm ít nhất một sản phẩm nữa để hệ thống đưa ra gợi ý tương đối chính xác hơn.</div>}
             <div className="overflow-x-auto rounded-[10px] border border-border-subtle">
               <table className="w-full min-w-[760px] border-collapse bg-bg-card/75 text-sm">
-                <caption className="sr-only">Bảng so sánh sản phẩm</caption>
+                <caption className="sr-only">Bảng so sánh sản phẩm theo thông số và điểm phù hợp</caption>
                 <thead>
                   <tr>
                     <th className="w-44 border-b border-r border-border-subtle p-4 text-left text-xs uppercase tracking-[0.08em] text-text-muted">Sản phẩm</th>
@@ -49,13 +94,33 @@ export default function Compare() {
                 </thead>
                 <tbody>
                   <tr>
+                    <th scope="row" className="border-b border-r border-border-subtle p-4 text-left text-text-muted">Điểm phù hợp</th>
+                    {compare.map((product) => {
+                      const productScore = scoreById.get(product.id)?.score ?? 0;
+                      const isBest = compare.length >= 2 && product.id === scoredProducts[0]?.id;
+                      return (
+                        <td key={product.id} className={`border-b border-r border-border-subtle p-4 last:border-r-0 ${isBest ? 'bg-primary/[0.06]' : ''}`}>
+                          <div className="mb-2 flex items-center justify-between gap-3"><span className="font-['JetBrains_Mono'] text-xl font-bold text-primary-hover">{productScore}/100</span>{isBest && <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.06em] text-primary"><Award size={13} aria-hidden="true" /> Dẫn đầu</span>}</div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-bg-main"><span className="block h-full rounded-full bg-gradient-to-r from-[#b98d42] to-[#f1d58a]" style={{ width: `${productScore}%` }} /></div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr>
                     <th scope="row" className="border-b border-r border-border-subtle p-4 text-left text-text-muted">Giá bán</th>
-                    {compare.map((product) => <td key={product.id} className="border-b border-r border-border-subtle p-4 font-['Sora'] font-bold text-primary-hover last:border-r-0">{formatCommercePrice(product.price)}</td>)}
+                    {compare.map((product) => {
+                      const isBest = compare.length >= 2 && Number(product.price) === lowestPrice;
+                      return <td key={product.id} className={`border-b border-r border-border-subtle p-4 font-['Sora'] font-bold text-primary-hover last:border-r-0 ${isBest ? 'bg-[#79b88d]/[0.06]' : ''}`}>{formatCommercePrice(product.price)}{isBest && <span className="mt-2 flex items-center gap-1 text-[10px] uppercase tracking-[0.06em] text-[#9ed1ad]"><CheckCircle2 size={13} aria-hidden="true" /> Giá thấp nhất</span>}</td>;
+                    })}
                   </tr>
                   {specKeys.map((key) => (
                     <tr key={key}>
                       <th scope="row" className="border-b border-r border-border-subtle p-4 text-left text-text-muted">{SPEC_LABELS[key] ?? key}</th>
-                      {compare.map((product) => <td key={product.id} className="border-b border-r border-border-subtle p-4 font-['JetBrains_Mono'] text-xs leading-6 text-text-main last:border-r-0">{product.specs?.[key] || '—'}</td>)}
+                      {compare.map((product) => {
+                        const comparableValue = getComparableSpecValue(key, product.specs?.[key]);
+                        const isBest = compare.length >= 2 && comparableValue > 0 && comparableValue === bestSpecValues[key];
+                        return <td key={product.id} className={`border-b border-r border-border-subtle p-4 font-['JetBrains_Mono'] text-xs leading-6 text-text-main last:border-r-0 ${isBest ? 'bg-primary/[0.05]' : ''}`}>{product.specs?.[key] || '—'}{isBest && <span className="mt-2 flex items-center gap-1 font-['Inter'] text-[10px] font-bold uppercase tracking-[0.06em] text-primary"><BarChart3 size={13} aria-hidden="true" /> Thông số nổi bật</span>}</td>;
+                      })}
                     </tr>
                   ))}
                   <tr>
@@ -69,6 +134,7 @@ export default function Compare() {
                 </tbody>
               </table>
             </div>
+            <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-text-muted"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" /> Điểm số chỉ hỗ trợ sàng lọc theo dữ liệu hiện có, không thay thế tư vấn kỹ thuật theo phần mềm và công việc thực tế.</p>
           </>
         )}
       </section>
