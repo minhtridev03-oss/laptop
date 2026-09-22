@@ -178,9 +178,15 @@ export default function Home() {
       <section className="luxury-page-section mx-auto w-full max-w-[1440px] px-4 pb-14 pt-6 lg:px-6 lg:pt-8">
         <div className="relative z-30 flex flex-col gap-3 lg:flex-row">
           <nav
-            className="luxury-panel relative z-40 hidden w-[280px] shrink-0 flex-col rounded-[10px] lg:flex"
+            className="luxury-panel relative z-40 hidden h-[420px] w-[280px] shrink-0 self-start flex-col rounded-[10px] lg:flex"
             aria-label="Danh mục sản phẩm"
             onMouseLeave={() => setActiveCategory(null)}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) setActiveCategory(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setActiveCategory(null);
+            }}
           >
             <div className="border-b border-border-subtle p-5">
               <p className="luxury-eyebrow mb-1">BỘ SƯU TẬP</p>
@@ -211,7 +217,7 @@ export default function Home() {
             </ul>
 
             {activeCategoryData?.category_groups?.length > 0 && (
-              <div className="luxury-panel absolute left-full top-0 z-50 ml-2 min-h-[420px] w-[min(800px,calc(100vw-330px))] rounded-[10px] p-7">
+              <div className="luxury-panel luxury-mega-menu left-full top-0 z-50 ml-2 h-[420px] w-[min(860px,calc(100vw-350px))] overflow-y-auto rounded-[10px] p-7">
                 <div className="grid grid-cols-3 gap-x-8 gap-y-7">
                   {activeCategoryData.category_groups.map((group) => (
                     <div key={group.id}>
