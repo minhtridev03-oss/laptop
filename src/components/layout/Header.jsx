@@ -68,7 +68,7 @@ export default function Header() {
             LW
             <span className="absolute inset-x-2 bottom-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent" aria-hidden="true" />
           </span>
-          <span className="flex flex-col leading-none">
+          <span className="hidden flex-col leading-none min-[360px]:flex">
             <span className="font-['Sora'] text-[17px] font-extrabold tracking-[0.08em] text-text-main transition-colors group-hover:text-primary-hover sm:text-[19px]">
               LAPTOP WORLD
             </span>

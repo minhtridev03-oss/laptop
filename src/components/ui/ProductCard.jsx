@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, ImageOff, ShoppingBag, Sparkles } from 'lucide-react';
+import { ArrowUpRight, ImageOff, Sparkles } from 'lucide-react';
 
 const formatPrice = (value) => {
   const price = Number(value);
@@ -80,14 +80,9 @@ export default function ProductCard({ product }) {
                 <del className="mt-1 block text-[10px] text-text-muted">{originalPrice}</del>
               )}
             </div>
-            <div className="flex shrink-0 gap-1.5">
-              <Link to={`/product/${product.id}`} className="luxury-icon-button grid h-11 w-11 place-items-center rounded-md" aria-label={`Xem ${product.name}`}>
-                <ArrowUpRight size={16} aria-hidden="true" />
-              </Link>
-              <Link to={`/product/${product.id}`} className="luxury-primary-button grid h-11 w-11 place-items-center rounded-md" aria-label={`Mua ${product.name}`}>
-                <ShoppingBag size={16} aria-hidden="true" />
-              </Link>
-            </div>
+            <Link to={`/product/${product.id}`} className="luxury-primary-button grid h-11 w-11 shrink-0 place-items-center rounded-md" aria-label={`Xem chi tiết ${product.name}`}>
+              <ArrowUpRight size={17} aria-hidden="true" />
+            </Link>
           </div>
         </div>
       </div>
