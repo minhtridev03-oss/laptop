@@ -8,6 +8,7 @@ import {
   Cpu,
   Gamepad2,
   HardDrive,
+  Joystick,
   Laptop,
   LayoutGrid,
   Monitor,
@@ -37,6 +38,7 @@ const iconMap = {
   HardDrive,
   Cable,
   Wifi,
+  Joystick,
 };
 
 const formatProductForCard = (product) => ({
