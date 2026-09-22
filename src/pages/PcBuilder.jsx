@@ -63,6 +63,32 @@ const readSavedBuild = () => {
   }
 };
 
+function ProductVisual({ className, icon: Icon, iconSize = 22, product }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = product?.image_url?.trim();
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageUrl]);
+
+  return (
+    <span className={`grid shrink-0 place-items-center overflow-hidden rounded-lg border ${imageUrl && !imageFailed ? 'border-primary/20 bg-[#f3f0e8]' : 'border-primary/20 bg-primary/[0.06] text-primary'} ${className}`}>
+      {imageUrl && !imageFailed ? (
+        <img
+          src={imageUrl}
+          alt={product.name}
+          className="h-full w-full object-contain p-2"
+          loading="lazy"
+          decoding="async"
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <Icon size={iconSize} strokeWidth={1.6} aria-hidden="true" />
+      )}
+    </span>
+  );
+}
+
 function PartPicker({ catalog, onClose, onSelect, openSlot, selections }) {
   const [query, setQuery] = useState('');
 
@@ -114,7 +140,7 @@ function PartPicker({ catalog, onClose, onSelect, openSlot, selections }) {
             return (
               <article key={product.id} className={`rounded-lg border p-4 transition-colors ${selected ? 'border-primary/55 bg-primary/[0.08]' : conflict ? 'border-border-subtle bg-bg-card/45 opacity-65' : 'border-border-subtle bg-bg-card/70 hover:border-primary/35'}`}>
                 <div className="flex gap-4">
-                  <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border border-border-subtle bg-bg-main text-primary"><SlotIcon size={24} strokeWidth={1.6} aria-hidden="true" /></span>
+                  <ProductVisual className="h-20 w-24" icon={SlotIcon} iconSize={24} product={product} />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
                       <div><p className="text-[10px] font-bold uppercase tracking-[0.08em] text-primary/80">{product.brand || 'Linh kiện'} · {getBuilderSpec(product, 'builder_tier', 'custom')}</p><h3 className="mt-1 font-['Sora'] text-sm font-semibold leading-6 text-text-main">{product.name}</h3></div>
@@ -258,7 +284,7 @@ export default function PcBuilder() {
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                     <div className="flex min-w-0 flex-1 items-center gap-4">
                       <span className="font-['JetBrains_Mono'] text-xs text-primary/65">{String(index + 1).padStart(2, '0')}</span>
-                      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-primary/20 bg-primary/[0.06] text-primary"><SlotIcon size={22} strokeWidth={1.6} aria-hidden="true" /></span>
+                      <ProductVisual className={product ? 'h-20 w-24 sm:h-24 sm:w-28' : 'h-12 w-12'} icon={SlotIcon} product={product} />
                       <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="font-['Sora'] text-sm font-bold text-text-main">{slot.label}</h2><span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] ${slot.required ? 'bg-primary/10 text-primary' : 'bg-bg-main text-text-muted'}`}>{slot.required ? 'Bắt buộc' : 'Tùy chọn'}</span></div>{product ? <><p className="mt-2 line-clamp-2 text-sm font-semibold leading-6 text-text-main">{product.name}</p><div className="mt-2 flex flex-wrap gap-2">{getPartHighlights(product).map((item) => <span key={item} className="luxury-chip rounded px-2 py-1 text-[9px]">{item}</span>)}</div></> : <p className="mt-1 text-sm text-text-muted">Chưa chọn {slot.shortLabel.toLocaleLowerCase('vi')}</p>}</div>
                     </div>
                     <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">{product && <p className="font-['Sora'] text-sm font-bold text-primary-hover">{formatCommercePrice(product.price)}</p>}<button type="button" onClick={() => setOpenSlot(slot)} className={`${product ? 'border border-primary/30 text-primary-hover hover:bg-primary/10' : 'luxury-primary-button'} inline-flex min-h-10 items-center gap-2 rounded-md px-4 text-xs font-bold uppercase tracking-[0.06em]`}>{product ? 'Thay đổi' : 'Chọn'} <ChevronRight size={15} aria-hidden="true" /></button>{product && <button type="button" onClick={() => removePart(slot.id)} className="grid h-10 w-10 place-items-center rounded-md border border-border-subtle text-text-muted hover:border-[#d56f66]/40 hover:text-[#e7958d]" aria-label={`Bỏ ${product.name}`}><X size={16} aria-hidden="true" /></button>}</div>
