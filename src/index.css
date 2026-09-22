@@ -129,6 +129,16 @@
 
   .luxury-mega-menu {
     position: absolute;
+    left: calc(100% - 1px);
+  }
+
+  .luxury-mega-menu::after {
+    position: absolute;
+    top: 0;
+    right: 100%;
+    width: 10px;
+    height: 100%;
+    content: '';
   }
 
   .luxury-eyebrow {
