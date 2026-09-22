@@ -5,6 +5,29 @@ const unwrap = ({ data, error }) => {
   return data;
 };
 
+export async function uploadProductImage(file) {
+  if (!file) throw new Error("Vui lòng chọn file ảnh");
+
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+  const filePath = `products/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('product-images')
+    .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+  if (uploadError) {
+    console.error("Upload error:", uploadError);
+    throw new Error("Lỗi tải ảnh lên Supabase: " + uploadError.message);
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from('product-images')
+    .getPublicUrl(filePath);
+
+  return publicUrlData.publicUrl;
+}
+
 export const ORDER_STATUSES = [
   { value: "pending", label: "Chờ xác nhận" },
   { value: "confirmed", label: "Đã xác nhận" },
@@ -32,13 +55,21 @@ export async function getStaffMembership(userId) {
   if (!userId) return null;
   const data = await unwrap(
     await supabase
-      .from("staff_members")
-      .select("user_id, role, display_name, is_active")
+      .from("customer_profiles")
+      .select("user_id, role, full_name")
       .eq("user_id", userId)
-      .eq("is_active", true)
       .maybeSingle(),
   );
-  return data ?? null;
+  
+  if (data && data.role === 'admin') {
+    return {
+      user_id: data.user_id,
+      role: 'admin',
+      display_name: data.full_name || 'Admin',
+      is_active: true
+    };
+  }
+  return null;
 }
 
 export async function loadAdminWorkspace() {
@@ -53,6 +84,7 @@ export async function loadAdminWorkspace() {
     couponsResult,
     reviewsResult,
     alertsResult,
+    bannersResult,
   ] = await Promise.all([
     supabase
       .from("products")
@@ -68,8 +100,8 @@ export async function loadAdminWorkspace() {
       .limit(200),
     supabase
       .from("categories")
-      .select("id, name")
-      .order("name", { ascending: true }),
+      .select("*, category_groups(*, category_items(*))")
+      .order("sort_order", { ascending: true }),
     supabase
       .from("inventory_movements")
       .select(
@@ -107,6 +139,10 @@ export async function loadAdminWorkspace() {
       .select("*")
       .order("created_at", { ascending: false })
       .limit(200),
+    supabase
+      .from("banners")
+      .select("*")
+      .order("id", { ascending: true }),
   ]);
 
   return {
@@ -120,6 +156,7 @@ export async function loadAdminWorkspace() {
     coupons: unwrap(couponsResult) ?? [],
     reviews: unwrap(reviewsResult) ?? [],
     alerts: unwrap(alertsResult) ?? [],
+    banners: unwrap(bannersResult) ?? [],
   };
 }
 
@@ -174,11 +211,51 @@ export async function saveCoupon(coupon) {
   );
 }
 
+export async function toggleCoupon(couponId, isActive) {
+  const { error } = await supabase
+    .from("coupons")
+    .update({ is_active: isActive })
+    .eq("id", couponId);
+  if (error) throw error;
+}
+
+export async function deleteCoupon(couponId) {
+  const { error } = await supabase
+    .from("coupons")
+    .delete()
+    .eq("id", couponId);
+  if (error) throw error;
+}
+
 export async function moderateReview(reviewId, status) {
   return unwrap(
     await supabase.rpc("admin_moderate_review", {
       p_review_id: reviewId,
       p_status: status,
     }),
+  );
+}
+
+export async function saveBanner(banner) {
+  return unwrap(
+    await supabase.rpc("admin_upsert_banner", { p_banner: banner })
+  );
+}
+
+export async function deleteBanner(id) {
+  return unwrap(
+    await supabase.rpc("admin_delete_banner", { p_id: id })
+  );
+}
+
+export async function saveCategory(category) {
+  return unwrap(
+    await supabase.rpc("admin_upsert_category", { p_category: category })
+  );
+}
+
+export async function deleteCategory(id) {
+  return unwrap(
+    await supabase.rpc("admin_delete_category", { p_id: id })
   );
 }

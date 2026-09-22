@@ -10,6 +10,7 @@ export function AuthProvider({ children }) {
   const [staffMembership, setStaffMembership] = useState(null);
   const [staffLoading, setStaffLoading] = useState(false);
   const [staffError, setStaffError] = useState(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -80,7 +81,9 @@ export function AuthProvider({ children }) {
     }),
     updatePassword: (password) => supabase.auth.updateUser({ password }),
     signOut: () => supabase.auth.signOut(),
-  }), [loading, refreshStaffMembership, staffError, staffLoading, staffMembership, user]);
+    authModalOpen,
+    setAuthModalOpen,
+  }), [loading, refreshStaffMembership, staffError, staffLoading, staffMembership, user, authModalOpen]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

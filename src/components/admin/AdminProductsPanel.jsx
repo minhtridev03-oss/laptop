@@ -179,7 +179,7 @@ export default function AdminProductsPanel({
                       )?.name || product.category_id}
                     </td>
                     <td className="p-4">
-                      <strong className="font-['Sora'] text-sm text-primary-hover">
+                      <strong className="font-['Be_Vietnam_Pro'] text-sm text-primary-hover">
                         {formatCommercePrice(product.price)}
                       </strong>
                       {Number(product.original_price) >

@@ -11,13 +11,18 @@ import {
   Settings2,
   ShieldCheck,
   Sparkles,
+  Tag,
   WalletCards,
+  LayoutTemplate,
 } from "lucide-react";
 import AdminGuard from "../../components/admin/AdminGuard";
 import AdminOrdersPanel from "../../components/admin/AdminOrdersPanel";
 import AdminProductsPanel from "../../components/admin/AdminProductsPanel";
 import AdminSettingsPanel from "../../components/admin/AdminSettingsPanel";
 import AdminGrowthPanel from "../../components/admin/AdminGrowthPanel";
+import AdminCouponsPanel from "../../components/admin/AdminCouponsPanel";
+import AdminBannersPanel from "../../components/admin/AdminBannersPanel";
+import AdminCategoriesPanel from "../../components/admin/AdminCategoriesPanel";
 import { useAuth } from "../../context/AuthContext";
 import { formatCommercePrice } from "../../lib/commerce";
 import { loadAdminWorkspace } from "../../services/adminService";
@@ -26,7 +31,9 @@ const TABS = [
   { id: "overview", label: "Tổng quan", Icon: LayoutDashboard },
   { id: "products", label: "Sản phẩm & kho", Icon: Boxes },
   { id: "orders", label: "Đơn hàng", Icon: ClipboardList },
+  { id: "coupons", label: "Mã giảm giá", Icon: Tag },
   { id: "growth", label: "Khuyến mãi & đánh giá", Icon: Sparkles },
+  { id: "ui", label: "Giao diện & Danh mục", Icon: LayoutTemplate },
   { id: "settings", label: "Thanh toán & giao hàng", Icon: Settings2 },
 ];
 
@@ -52,7 +59,7 @@ function MetricCard({ hint, icon: Icon, label, value, warning = false }) {
       <p className="mt-5 text-xs font-semibold uppercase tracking-[0.08em] text-text-muted">
         {label}
       </p>
-      <p className="mt-2 font-['Sora'] text-2xl font-bold text-text-main">
+      <p className="mt-2 font-['Be_Vietnam_Pro'] text-2xl font-bold text-text-main">
         {value}
       </p>
       <p className="mt-2 text-[10px] leading-5 text-text-muted">{hint}</p>
@@ -342,6 +349,12 @@ function AdminWorkspace() {
                 onOrderUpdated={onOrderUpdated}
               />
             )}
+            {tab === "coupons" && (
+              <AdminCouponsPanel
+                coupons={workspace.coupons}
+                onRefresh={refresh}
+              />
+            )}
             {tab === "growth" && (
               <AdminGrowthPanel
                 alerts={workspace.alerts}
@@ -357,6 +370,18 @@ function AdminWorkspace() {
                 paymentMethods={workspace.paymentMethods}
                 shippingZones={workspace.shippingZones}
               />
+            )}
+            {tab === "ui" && (
+              <div className="space-y-8">
+                <AdminBannersPanel
+                  banners={workspace.banners}
+                  onRefresh={refresh}
+                />
+                <AdminCategoriesPanel
+                  categories={workspace.categories}
+                  onRefresh={refresh}
+                />
+              </div>
             )}
           </>
         )}

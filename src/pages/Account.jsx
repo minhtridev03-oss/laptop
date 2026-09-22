@@ -14,21 +14,25 @@ import {
   Settings,
   ShoppingBag,
   UserRound,
+  ShieldCheck,
 } from "lucide-react";
 import AccountAddresses from "../components/account/AccountAddresses";
 import AccountOrders from "../components/account/AccountOrders";
 import AccountProfile from "../components/account/AccountProfile";
 import AccountPcBuilds from "../components/account/AccountPcBuilds";
+import AccountWarranties from "../components/account/AccountWarranties";
 import { useAuth } from "../context/AuthContext";
 import { useCommerce } from "../context/CommerceContext";
 import { formatCommercePrice } from "../lib/commerce";
 import { loadCustomerAccount } from "../services/customerService";
+import { useTranslation } from "react-i18next";
 
 const TABS = [
   { id: "overview", label: "Tổng quan", Icon: UserRound },
   { id: "orders", label: "Đơn hàng", Icon: ClipboardList },
   { id: "addresses", label: "Địa chỉ", Icon: MapPin },
   { id: "builds", label: "Cấu hình PC", Icon: Cpu },
+  { id: "warranties", label: "Bảo hành", Icon: ShieldCheck },
   { id: "profile", label: "Hồ sơ & bảo mật", Icon: Settings },
 ];
 
@@ -64,7 +68,7 @@ function AccountOverview({
             <p className="mt-5 text-xs uppercase tracking-[0.08em] text-text-muted">
               {label}
             </p>
-            <p className="mt-2 font-['Sora'] text-2xl font-bold text-text-main">
+            <p className="mt-2 font-['Be_Vietnam_Pro'] text-2xl font-bold text-text-main">
               {value}
             </p>
           </button>
@@ -117,6 +121,24 @@ function AccountOverview({
               )}
             </dd>
           </div>
+          <div className="mt-4 border-t border-border-subtle pt-4">
+            <dt className="text-[10px] font-bold uppercase tracking-[0.08em] text-primary/80">
+              Hạng thành viên
+            </dt>
+            <dd className="mt-2 flex items-end justify-between">
+              <span className="font-['Be_Vietnam_Pro'] text-lg font-bold text-primary">
+                {profile?.membership_tier || "Thành viên"}
+              </span>
+              <div className="text-right">
+                <span className="block font-['JetBrains_Mono'] text-sm font-bold text-text-main">
+                  {profile?.loyalty_points || 0}
+                </span>
+                <span className="text-[9px] uppercase tracking-wider text-text-muted">
+                  Điểm tích lũy
+                </span>
+              </div>
+            </dd>
+          </div>
         </dl>
       </aside>
     </div>
@@ -128,12 +150,14 @@ export default function Account() {
   const { loading: authLoading, signOut, user } = useAuth();
   const { cartCount, commerceSyncError, commerceSyncing, wishlist } =
     useCommerce();
+  const { t } = useTranslation();
   const [tab, setTab] = useState("overview");
   const [workspace, setWorkspace] = useState({
     profile: null,
     addresses: [],
     orders: [],
     savedBuilds: [],
+    warranties: [],
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -190,15 +214,15 @@ export default function Account() {
   return (
     <>
       <Helmet>
-        <title>Tài khoản của tôi | Laptop World</title>
+        <title>{t('account.title')} | Laptop World</title>
       </Helmet>
       <section className="luxury-page-section mx-auto min-h-[75vh] w-full max-w-[1240px] px-4 py-9 lg:px-6 lg:py-12">
         <header className="mb-7 flex flex-col justify-between gap-5 border-b border-border-subtle pb-7 sm:flex-row sm:items-end">
           <div>
-            <p className="luxury-eyebrow mb-3">CUSTOMER CENTER</p>
-            <h1 className="luxury-heading text-3xl">Tài khoản của tôi</h1>
+            <p className="luxury-eyebrow mb-3">{t('account.eyebrow')}</p>
+            <h1 className="luxury-heading text-3xl">{t('account.title')}</h1>
             <p className="mt-3 text-sm text-text-muted">
-              Dữ liệu được đồng bộ an toàn với tài khoản Supabase của bạn.
+              {t('account.subtitle')}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -291,6 +315,9 @@ export default function Account() {
                 builds={workspace.savedBuilds}
                 onChanged={refresh}
               />
+            )}
+            {tab === "warranties" && (
+              <AccountWarranties warranties={workspace.warranties} refresh={refresh} />
             )}
             {tab === "profile" && (
               <AccountProfile

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   Cable,
   ChevronRight,
@@ -21,8 +22,9 @@ import {
 } from 'lucide-react';
 import ProductCard from '../components/ui/ProductCard';
 import { supabase } from '../lib/supabase';
+import { useTranslation } from 'react-i18next';
 
-const SLIDE_INTERVAL = 5000;
+const SLIDE_INTERVAL = 8000;
 const iconMap = {
   Laptop,
   Gamepad2,
@@ -61,6 +63,7 @@ const formatProductForCard = (product) => ({
 });
 
 function SectionHeading({ eyebrow, title, accent, href }) {
+  const { t } = useTranslation();
   return (
     <div className="mb-6 flex items-end justify-between gap-5 border-b border-border-subtle pb-4">
       <div>
@@ -73,7 +76,7 @@ function SectionHeading({ eyebrow, title, accent, href }) {
         to={href}
         className="group flex min-h-11 shrink-0 items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.13em] text-text-muted transition-colors hover:text-primary-hover"
       >
-        Xem tất cả
+        {t('home.view_all')}
         <ChevronRight size={15} className="transition-transform group-hover:translate-x-1" aria-hidden="true" />
       </Link>
     </div>
@@ -84,18 +87,30 @@ function ProductSection({ eyebrow, title, accent, href, products }) {
   if (products.length === 0) return null;
 
   return (
-    <section className="luxury-page-section mx-auto mb-16 w-full max-w-[1440px] px-4 lg:px-6">
+    <section className="luxury-page-section mx-auto mb-16 w-full max-w-[1920px] px-4 lg:px-6 2xl:px-8">
       <SectionHeading eyebrow={eyebrow} title={title} accent={accent} href={href} />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5">
-        {products.slice(0, 10).map((product) => (
-          <ProductCard key={product.id} product={formatProductForCard(product)} />
+      <motion.div
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7"
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: '-60px' }}
+        variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.05 } } }}
+      >
+        {products.slice(0, 14).map((product) => (
+          <motion.div
+            key={product.id}
+            variants={{ hidden: { opacity: 0, y: 18 }, visible: { opacity: 1, y: 0, transition: { duration: 0.32, ease: 'easeOut' } } }}
+          >
+            <ProductCard product={formatProductForCard(product)} />
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </section>
   );
 }
 
 export default function Home() {
+  const { t } = useTranslation();
   const [mainBanners, setMainBanners] = useState([]);
   const [subBanners, setSubBanners] = useState([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
@@ -123,18 +138,23 @@ export default function Home() {
 
     async function fetchData() {
       try {
-        const [bannersRes, categoriesRes, productsRes] = await Promise.all([
+        // Chạy song song: banners + categories + 3 product sections riêng biệt
+        // Mỗi query chỉ lấy đúng những gì cần, giới hạn 14 sản phẩm
+        const PRODUCT_COLUMNS = 'id,name,price,original_price,discount,category_id,image_url,spec_cpu,spec_ram,spec_storage,spec_gpu,is_hot,stock_quantity,status,sort_order';
+
+        const [bannersRes, categoriesRes, flashRes, bestSellerRes, newestRes] = await Promise.all([
           supabase.from('banners').select('*').order('id', { ascending: true }),
           supabase
             .from('categories')
             .select('*, category_groups(*, category_items(*))')
             .order('sort_order', { ascending: true }),
-          supabase.from('products').select('*').order('sort_order', { ascending: true }),
+          supabase.from('products').select(PRODUCT_COLUMNS).eq('is_flash_sale', true).order('sort_order', { ascending: true }).limit(14),
+          supabase.from('products').select(PRODUCT_COLUMNS).eq('is_best_seller', true).order('sort_order', { ascending: true }).limit(14),
+          supabase.from('products').select(PRODUCT_COLUMNS).eq('is_new', true).order('sort_order', { ascending: true }).limit(14),
         ]);
 
         if (bannersRes.error) throw bannersRes.error;
         if (categoriesRes.error) throw categoriesRes.error;
-        if (productsRes.error) throw productsRes.error;
         if (ignore) return;
 
         setMainBanners((bannersRes.data ?? []).filter((banner) => banner.type === 'main'));
@@ -148,9 +168,9 @@ export default function Home() {
               category_items: [...(group.category_items ?? [])].sort((a, b) => a.sort_order - b.sort_order),
             })),
         })));
-        setFlashSaleProducts((productsRes.data ?? []).filter((product) => product.is_flash_sale));
-        setBestSellerProducts((productsRes.data ?? []).filter((product) => product.is_best_seller));
-        setNewestProducts((productsRes.data ?? []).filter((product) => product.is_new));
+        setFlashSaleProducts(flashRes.data ?? []);
+        setBestSellerProducts(bestSellerRes.data ?? []);
+        setNewestProducts(newestRes.data ?? []);
       } catch (error) {
         console.error('Error fetching home data:', error);
       } finally {
@@ -161,6 +181,7 @@ export default function Home() {
     fetchData();
     return () => { ignore = true; };
   }, []);
+
 
   useEffect(() => {
     if (mainBanners.length <= 1 || carouselPaused) return undefined;
@@ -197,10 +218,10 @@ export default function Home() {
         })}</script>
       </Helmet>
 
-      <section className="luxury-page-section mx-auto w-full max-w-[1440px] px-4 pb-14 pt-6 lg:px-6 lg:pt-8">
+      <section className="luxury-page-section mx-auto w-full max-w-[1920px] px-4 pb-14 pt-6 lg:px-6 2xl:px-8 lg:pt-8">
         <div className="relative z-30 flex flex-col gap-3 lg:flex-row">
           <nav
-            className="luxury-panel relative z-40 hidden h-[420px] w-[280px] shrink-0 self-start flex-col rounded-[10px] lg:flex"
+            className="luxury-panel relative z-40 hidden h-[520px] w-[280px] shrink-0 self-start flex-col rounded-[10px] lg:flex"
             aria-label="Danh mục sản phẩm"
             onMouseEnter={cancelCategoryClose}
             onMouseLeave={scheduleCategoryClose}
@@ -212,10 +233,10 @@ export default function Home() {
             }}
           >
             <div className="border-b border-border-subtle p-5">
-              <p className="luxury-eyebrow mb-1">BỘ SƯU TẬP</p>
-              <strong className="font-['Sora'] text-sm uppercase tracking-[0.06em] text-text-main">Danh mục sản phẩm</strong>
+              <p className="luxury-eyebrow mb-1">{t('home.categories_eyebrow')}</p>
+              <strong className="font-['Be_Vietnam_Pro'] text-sm uppercase tracking-[0.06em] text-text-main">{t('home.categories_title')}</strong>
             </div>
-            <ul className="custom-scrollbar flex max-h-[346px] flex-col overflow-y-auto px-2 py-2 text-[13px]">
+            <ul className="custom-scrollbar flex max-h-[446px] flex-col overflow-y-auto px-2 py-2 text-[13px]">
               {categories.map((category) => {
                 const Icon = iconMap[category.icon];
                 const isActive = activeCategory === category.id;
@@ -345,7 +366,7 @@ export default function Home() {
                     <img src={banner.image_url} alt={banner.title1 || banner.tag || 'Bộ sưu tập sản phẩm'} loading="lazy" decoding="async" className="h-full w-full object-cover opacity-55 transition-transform duration-500 group-hover:scale-105" />
                     <span className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-bg-main via-bg-main/25 to-transparent p-4">
                       {banner.tag && <span className="luxury-eyebrow mb-1">{banner.tag}</span>}
-                      <strong className="font-['Sora'] text-sm leading-snug text-text-main transition-colors group-hover:text-primary-hover sm:text-base">{banner.title1}</strong>
+                      <strong className="font-['Be_Vietnam_Pro'] text-sm leading-snug text-text-main transition-colors group-hover:text-primary-hover sm:text-base">{banner.title1}</strong>
                     </span>
                   </Link>
                 ))}
@@ -355,9 +376,9 @@ export default function Home() {
         </div>
       </section>
 
-      <ProductSection eyebrow="Ưu đãi tuyển chọn" title="Flash" accent="Sale" href="/products?sort=flash-sale" products={flashSaleProducts} />
-      <ProductSection eyebrow="Được tin chọn" title="Bán chạy" accent="nhất" href="/products?sort=best-seller" products={bestSellerProducts} />
-      <ProductSection eyebrow="Vừa cập nhật" title="Sản phẩm" accent="mới nhất" href="/products?sort=newest" products={newestProducts} />
+      <ProductSection eyebrow={t('home.hero_eyebrow')} title="Flash" accent="Sale" href="/products?sort=flash-sale" products={flashSaleProducts} />
+      <ProductSection eyebrow={t('home.trusted')} title={t('home.best_seller')} accent="" href="/products?sort=best-seller" products={bestSellerProducts} />
+      <ProductSection eyebrow={t('home.newly_updated')} title={t('home.new_products')} accent="" href="/products?sort=newest" products={newestProducts} />
     </>
   );
 }

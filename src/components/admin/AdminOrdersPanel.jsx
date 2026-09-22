@@ -93,7 +93,7 @@ function OrderCard({ onUpdated, order }) {
           </p>
         </div>
         <div className="text-left lg:text-right">
-          <p className="font-['Sora'] text-lg font-bold text-primary-hover">
+          <p className="font-['Be_Vietnam_Pro'] text-lg font-bold text-primary-hover">
             {formatCommercePrice(order.total)}
           </p>
           <p className="mt-1 text-[10px] uppercase tracking-[0.07em] text-text-muted">

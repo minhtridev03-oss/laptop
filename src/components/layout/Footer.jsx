@@ -1,21 +1,24 @@
 import { Headphones, MapPin, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-const shoppingLinks = [
-  { label: 'Tất cả sản phẩm', to: '/products' },
-  { label: 'Tự build PC', to: '/build-pc' },
-  { label: 'Giỏ hàng', to: '/cart' },
-  { label: 'Sản phẩm yêu thích', to: '/wishlist' },
-  { label: 'So sánh sản phẩm', to: '/compare' },
-];
-const supportLinks = [
-  { label: 'Tra cứu đơn hàng', to: '/order-lookup' },
-  { label: 'Sản phẩm đã xem', to: '/recently-viewed' },
-  { label: 'Tư vấn mua hàng', href: 'tel:0961560888' },
-  { label: 'Chỉ đường showroom', href: 'https://maps.google.com/?q=10+Ngõ+117+Thái+Hà+Hà+Nội' },
-];
+import { useTranslation } from 'react-i18next';
 
 export default function Footer() {
+  const { t } = useTranslation();
+
+  const shoppingLinks = [
+    { label: t('footer.shopping_links.all_products'), to: '/products' },
+    { label: t('footer.shopping_links.build_pc'), to: '/build-pc' },
+    { label: t('footer.shopping_links.cart'), to: '/cart' },
+    { label: t('footer.shopping_links.wishlist'), to: '/wishlist' },
+    { label: t('footer.shopping_links.compare'), to: '/compare' },
+  ];
+  const supportLinks = [
+    { label: t('footer.support_links.order_lookup'), to: '/order-lookup' },
+    { label: t('footer.support_links.recently_viewed'), to: '/recently-viewed' },
+    { label: t('footer.support_links.consult'), href: 'tel:0961560888' },
+    { label: t('footer.support_links.directions'), href: 'https://maps.google.com/?q=10+Ngõ+117+Thái+Hà+Hà+Nội' },
+  ];
+
   return (
     <footer className="relative mt-16 overflow-hidden border-t border-primary/15 bg-[#0c0b09] text-text-muted">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent" aria-hidden="true" />
@@ -27,38 +30,38 @@ export default function Footer() {
             <span className="luxury-icon-button grid h-11 w-11 shrink-0 place-items-center rounded-lg text-primary">
               <Headphones size={20} aria-hidden="true" />
             </span>
-            <div><span className="luxury-eyebrow block">TƯ VẤN MUA HÀNG</span><a href="tel:18001060" className="mt-1 block font-['Sora'] text-sm font-semibold text-text-main hover:text-primary-hover">1800.1060</a></div>
+            <div><span className="luxury-eyebrow block">{t('footer.consult_title')}</span><a href="tel:18001060" className="mt-1 block font-['Be_Vietnam_Pro'] text-sm font-semibold text-text-main hover:text-primary-hover">1800.1060</a></div>
           </div>
           <div className="luxury-panel flex items-center gap-4 rounded-[10px] p-4">
             <span className="luxury-icon-button grid h-11 w-11 shrink-0 place-items-center rounded-lg text-primary">
               <ShieldCheck size={20} aria-hidden="true" />
             </span>
-            <div><span className="luxury-eyebrow block">HỖ TRỢ KỸ THUẬT</span><a href="tel:18001763" className="mt-1 block font-['Sora'] text-sm font-semibold text-text-main hover:text-primary-hover">1800.1763</a></div>
+            <div><span className="luxury-eyebrow block">{t('footer.support_title')}</span><a href="tel:18001763" className="mt-1 block font-['Be_Vietnam_Pro'] text-sm font-semibold text-text-main hover:text-primary-hover">1800.1763</a></div>
           </div>
           <div className="luxury-panel flex items-center gap-4 rounded-[10px] p-4">
             <span className="luxury-icon-button grid h-11 w-11 shrink-0 place-items-center rounded-lg text-primary">
               <MapPin size={20} aria-hidden="true" />
             </span>
-            <div><span className="luxury-eyebrow block">SHOWROOM</span><p className="mt-1 text-sm font-semibold text-text-main">10 Ngõ 117 Thái Hà, Hà Nội</p></div>
+            <div><span className="luxury-eyebrow block">{t('footer.showroom_title')}</span><p className="mt-1 text-sm font-semibold text-text-main">{t('footer.address')}</p></div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-9 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr]">
           <div className="pr-4">
             <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-lg border border-primary/40 bg-primary/10 font-['Sora'] text-xs font-extrabold text-primary-hover">LW</span>
+              <span className="grid h-10 w-10 place-items-center rounded-lg border border-primary/40 bg-primary/10 font-['Be_Vietnam_Pro'] text-xs font-extrabold text-primary-hover">LW</span>
               <div><h2 className="luxury-heading text-lg tracking-[0.06em]">LAPTOP WORLD</h2><span className="luxury-eyebrow">PREMIUM HARDWARE</span></div>
             </div>
             <p className="mt-5 max-w-sm text-sm leading-7 text-text-muted">
-              Không gian công nghệ dành cho laptop, PC và linh kiện hiệu năng cao, được tuyển chọn cho công việc, sáng tạo và gaming.
+              {t('footer.description')}
             </p>
           </div>
 
-          <FooterColumn title="Mua sắm" items={shoppingLinks} />
-          <FooterColumn title="Hỗ trợ" items={supportLinks} />
+          <FooterColumn title={t('footer.shopping')} items={shoppingLinks} />
+          <FooterColumn title={t('footer.support')} items={supportLinks} />
 
           <div>
-            <h3 className="luxury-heading mb-5 text-sm uppercase tracking-[0.1em]">Thanh toán</h3>
+            <h3 className="luxury-heading mb-5 text-sm uppercase tracking-[0.1em]">{t('footer.payment')}</h3>
             <div className="flex gap-2">
               <div className="rounded-md border border-border-subtle bg-[#f7f4ec] px-3 py-2">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/200px-Visa_Inc._logo.svg.png" alt="Visa" className="h-5 w-auto" />
@@ -67,12 +70,12 @@ export default function Footer() {
                 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Mastercard-logo.svg/200px-Mastercard-logo.svg.png" alt="Mastercard" className="h-5 w-auto" />
               </div>
             </div>
-            <p className="mt-4 text-xs leading-5 text-text-muted">Hỗ trợ tư vấn từ 7:30 đến 22:00 mỗi ngày.</p>
+            <p className="mt-4 text-xs leading-5 text-text-muted">{t('footer.support_hours')}</p>
           </div>
         </div>
 
         <div className="mt-12 flex flex-col gap-2 border-t border-border-subtle pt-6 text-[11px] sm:flex-row sm:items-center sm:justify-between">
-          <span>© 2026 Laptop World. Mọi quyền được bảo lưu.</span>
+          <span>{t('footer.copyright')}</span>
           <span className="font-['JetBrains_Mono'] tracking-[0.1em] text-primary/70">ENGINEERED FOR PERFORMANCE</span>
         </div>
       </div>

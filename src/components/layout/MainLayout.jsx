@@ -1,9 +1,23 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Toaster } from 'sonner';
 import Header from './Header';
 import Footer from './Footer';
-import CommerceToast from '../ui/CommerceToast';
+
+const pageVariants = {
+  initial: { opacity: 0, y: 15 },
+  in: { opacity: 1, y: 0 },
+  out: { opacity: 0, y: -15 },
+};
+
+const pageTransition = {
+  type: 'tween',
+  ease: 'easeInOut',
+  duration: 0.25,
+};
 
 export default function MainLayout() {
+  const location = useLocation();
   return (
     <div className="min-h-screen flex flex-col bg-transparent">
       <a
@@ -13,11 +27,23 @@ export default function MainLayout() {
         Chuyển tới nội dung chính
       </a>
       <Header />
-      <main id="main-content" className="flex-1 bg-transparent" tabIndex={-1}>
-        <Outlet />
+      <main id="main-content" className="flex-1 bg-transparent overflow-x-hidden" tabIndex={-1}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial="initial"
+            animate="in"
+            exit="out"
+            variants={pageVariants}
+            transition={pageTransition}
+            className="w-full h-full"
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
       <Footer />
-      <CommerceToast />
+      <Toaster richColors position="bottom-center" />
     </div>
   );
 }

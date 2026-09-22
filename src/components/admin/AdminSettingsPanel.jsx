@@ -352,7 +352,7 @@ export default function AdminSettingsPanel({
                   {zone.is_active ? "Đang bật" : "Đã tắt"}
                 </span>
               </div>
-              <h3 className="mt-4 font-['Sora'] text-sm font-bold text-text-main">
+              <h3 className="mt-4 font-['Be_Vietnam_Pro'] text-sm font-bold text-text-main">
                 {zone.name}
               </h3>
               <p className="mt-2 text-xs text-text-muted">
