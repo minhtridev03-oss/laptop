@@ -1,172 +1,225 @@
+import { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
+import {
+  Cable,
+  ChevronRight,
+  CircuitBoard,
+  Cpu,
+  Gamepad2,
+  HardDrive,
+  Laptop,
+  LayoutGrid,
+  Monitor,
+  MonitorDot,
+  MonitorSmartphone,
+  Printer,
+  Server,
+  Tablet,
+  Wifi,
+} from 'lucide-react';
 import ProductCard from '../components/ui/ProductCard';
-import { ChevronRight, Laptop, Gamepad2, Monitor, Tablet, MonitorDot, Cpu, Server, CircuitBoard, LayoutGrid, MonitorSmartphone, Joystick, Printer, HardDrive, Cable, Wifi, Zap, TrendingUp, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useState, useEffect } from 'react';
 
-const iconMap = { Laptop, Gamepad2, Monitor, Tablet, MonitorDot, Cpu, Server, CircuitBoard, LayoutGrid, MonitorSmartphone, Joystick, Printer, HardDrive, Cable, Wifi };
+const SLIDE_INTERVAL = 5000;
+const iconMap = {
+  Laptop,
+  Gamepad2,
+  Monitor,
+  Tablet,
+  MonitorDot,
+  Cpu,
+  Server,
+  CircuitBoard,
+  LayoutGrid,
+  MonitorSmartphone,
+  Printer,
+  HardDrive,
+  Cable,
+  Wifi,
+};
+
+const formatProductForCard = (product) => ({
+  id: product.id,
+  name: product.name,
+  price: product.price,
+  originalPrice: product.original_price,
+  discount: product.discount,
+  category: product.category_id,
+  image: product.image_url,
+  specs: {
+    cpu: product.spec_cpu,
+    ram: product.spec_ram,
+    storage: product.spec_storage,
+    gpu: product.spec_gpu,
+  },
+  isHot: product.is_hot,
+});
+
+function SectionHeading({ eyebrow, title, accent, href }) {
+  return (
+    <div className="mb-6 flex items-end justify-between gap-5 border-b border-border-subtle pb-4">
+      <div>
+        <p className="luxury-eyebrow mb-2">{eyebrow}</p>
+        <h2 className="luxury-heading text-xl uppercase sm:text-2xl">
+          {title} <span className="luxury-gold-text">{accent}</span>
+        </h2>
+      </div>
+      <Link
+        to={href}
+        className="group flex min-h-11 shrink-0 items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.13em] text-text-muted transition-colors hover:text-primary-hover"
+      >
+        Xem tất cả
+        <ChevronRight size={15} className="transition-transform group-hover:translate-x-1" aria-hidden="true" />
+      </Link>
+    </div>
+  );
+}
+
+function ProductSection({ eyebrow, title, accent, href, products }) {
+  if (products.length === 0) return null;
+
+  return (
+    <section className="luxury-page-section mx-auto mb-16 w-full max-w-[1440px] px-4 lg:px-6">
+      <SectionHeading eyebrow={eyebrow} title={title} accent={accent} href={href} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5">
+        {products.slice(0, 10).map((product) => (
+          <ProductCard key={product.id} product={formatProductForCard(product)} />
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function Home() {
   const [mainBanners, setMainBanners] = useState([]);
   const [subBanners, setSubBanners] = useState([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const SLIDE_INTERVAL = 4000;
-  
+  const [carouselPaused, setCarouselPaused] = useState(false);
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState(null);
-
   const [flashSaleProducts, setFlashSaleProducts] = useState([]);
   const [bestSellerProducts, setBestSellerProducts] = useState([]);
   const [newestProducts, setNewestProducts] = useState([]);
 
-  // Countdown timer state
-  const [countdown, setCountdown] = useState({ hours: 2, minutes: 30, seconds: 0 });
-
   useEffect(() => {
+    let ignore = false;
+
     async function fetchData() {
       try {
         const [bannersRes, categoriesRes, productsRes] = await Promise.all([
           supabase.from('banners').select('*').order('id', { ascending: true }),
-          supabase.from('categories').select('*, category_groups(*, category_items(*))').order('sort_order', { ascending: true }),
-          supabase.from('products').select('*').order('sort_order', { ascending: true })
+          supabase
+            .from('categories')
+            .select('*, category_groups(*, category_items(*))')
+            .order('sort_order', { ascending: true }),
+          supabase.from('products').select('*').order('sort_order', { ascending: true }),
         ]);
-        
+
         if (bannersRes.error) throw bannersRes.error;
         if (categoriesRes.error) throw categoriesRes.error;
         if (productsRes.error) throw productsRes.error;
-        
-        if (bannersRes.data) {
-          setMainBanners(bannersRes.data.filter(b => b.type === 'main'));
-          setSubBanners(bannersRes.data.filter(b => b.type === 'sub'));
-        }
+        if (ignore) return;
 
-        if (categoriesRes.data) {
-          const sortedCats = categoriesRes.data.map(cat => ({
-            ...cat,
-            category_groups: cat.category_groups
-              .sort((a, b) => a.sort_order - b.sort_order)
-              .map(group => ({
-                ...group,
-                category_items: group.category_items.sort((a, b) => a.sort_order - b.sort_order)
-              }))
-          }));
-          setCategories(sortedCats);
-        }
-
-        if (productsRes.data) {
-          setFlashSaleProducts(productsRes.data.filter(p => p.is_flash_sale));
-          setBestSellerProducts(productsRes.data.filter(p => p.is_best_seller));
-          setNewestProducts(productsRes.data.filter(p => p.is_new));
-        }
+        setMainBanners((bannersRes.data ?? []).filter((banner) => banner.type === 'main'));
+        setSubBanners((bannersRes.data ?? []).filter((banner) => banner.type === 'sub'));
+        setCategories((categoriesRes.data ?? []).map((category) => ({
+          ...category,
+          category_groups: [...(category.category_groups ?? [])]
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map((group) => ({
+              ...group,
+              category_items: [...(group.category_items ?? [])].sort((a, b) => a.sort_order - b.sort_order),
+            })),
+        })));
+        setFlashSaleProducts((productsRes.data ?? []).filter((product) => product.is_flash_sale));
+        setBestSellerProducts((productsRes.data ?? []).filter((product) => product.is_best_seller));
+        setNewestProducts((productsRes.data ?? []).filter((product) => product.is_new));
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching home data:', error);
       } finally {
-        setLoadingBanners(false);
+        if (!ignore) setLoadingBanners(false);
       }
     }
+
     fetchData();
+    return () => { ignore = true; };
   }, []);
 
-  // Auto-play slider
   useEffect(() => {
-    if (mainBanners.length <= 1) return;
-    const intervalId = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % mainBanners.length);
+    if (mainBanners.length <= 1 || carouselPaused) return undefined;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      setCurrentSlide((current) => (current + 1) % mainBanners.length);
     }, SLIDE_INTERVAL);
-    return () => clearInterval(intervalId);
-  }, [mainBanners.length]);
+    return () => window.clearInterval(intervalId);
+  }, [carouselPaused, mainBanners.length]);
 
-  // Flash Sale countdown timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev.hours === 0 && prev.minutes === 0 && prev.seconds === 0) {
-          return { hours: 2, minutes: 30, seconds: 0 }; // Reset
-        }
-        let { hours, minutes, seconds } = prev;
-        if (seconds > 0) { seconds--; }
-        else if (minutes > 0) { minutes--; seconds = 59; }
-        else if (hours > 0) { hours--; minutes = 59; seconds = 59; }
-        return { hours, minutes, seconds };
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatProductForCard = (product) => ({
-    id: product.id,
-    name: product.name,
-    price: product.price,
-    originalPrice: product.original_price,
-    discount: product.discount,
-    category: product.category_id,
-    image: product.image_url,
-    specs: { cpu: product.spec_cpu, ram: product.spec_ram, storage: product.spec_storage, gpu: product.spec_gpu },
-    isHot: product.is_hot
-  });
+  const activeBanner = mainBanners[currentSlide] ?? mainBanners[0];
+  const activeCategoryData = categories.find((category) => category.id === activeCategory);
 
   return (
     <>
       <Helmet>
-        <title>Laptop World - Linh Kiện & Máy Tính Cao Cấp | Home</title>
-        <meta name="description" content="Chuyên cung cấp laptop, PC, linh kiện điện tử chính hãng. Giá tốt nhất, bảo hành uy tín." />
+        <title>Laptop World | Laptop, PC & linh kiện cao cấp</title>
+        <meta
+          name="description"
+          content="Laptop, PC và linh kiện chính hãng tuyển chọn. Cấu hình minh bạch, tư vấn chuyên sâu và bảo hành uy tín tại Laptop World."
+        />
       </Helmet>
 
-      <div className="w-full px-[10px] py-6">
-        {/* Hero Section */}
-        <div className="flex flex-col lg:flex-row gap-[10px] mb-12 relative z-40">
-          {/* Sidebar Menu */}
-          <div 
-            className="w-full lg:w-[260px] xl:w-[280px] flex-shrink-0 bg-bg-card rounded-sm shadow-sm hidden lg:flex flex-col border border-border-subtle relative z-50"
+      <section className="luxury-page-section mx-auto w-full max-w-[1440px] px-4 pb-14 pt-6 lg:px-6 lg:pt-8">
+        <div className="relative z-30 flex flex-col gap-3 lg:flex-row">
+          <nav
+            className="luxury-panel relative z-40 hidden w-[280px] shrink-0 flex-col rounded-[10px] lg:flex"
+            aria-label="Danh mục sản phẩm"
             onMouseLeave={() => setActiveCategory(null)}
           >
-            <div className="bg-bg-card text-text-main font-bold p-4 text-sm border-b border-border-subtle uppercase tracking-widest flex items-center gap-2">
-              Danh mục
+            <div className="border-b border-border-subtle p-5">
+              <p className="luxury-eyebrow mb-1">BỘ SƯU TẬP</p>
+              <strong className="font-['Sora'] text-sm uppercase tracking-[0.06em] text-text-main">Danh mục sản phẩm</strong>
             </div>
-            <ul className="text-[13px] flex flex-col py-1 overflow-y-auto custom-scrollbar">
-              {categories.map((cat) => {
-                const IconComp = iconMap[cat.icon];
-                const hasMegaMenu = cat.category_groups && cat.category_groups.length > 0;
+            <ul className="custom-scrollbar flex max-h-[346px] flex-col overflow-y-auto px-2 py-2 text-[13px]">
+              {categories.map((category) => {
+                const Icon = iconMap[category.icon];
+                const isActive = activeCategory === category.id;
                 return (
-                <li 
-                  key={cat.id} 
-                  className="px-2 py-0.5"
-                  onMouseEnter={() => setActiveCategory(cat.id)}
-                >
-                  <Link 
-                    to={`/category/${cat.id}`} 
-                    className={`flex items-center justify-between p-2 rounded transition-colors font-medium group ${activeCategory === cat.id ? 'bg-bg-main text-primary' : 'hover:bg-bg-main hover:text-primary text-text-muted'}`}
-                  >
-                    <span className="flex items-center gap-3">
-                      {IconComp && <IconComp size={16} strokeWidth={1.8} className={`shrink-0 transition-colors ${activeCategory === cat.id ? 'text-primary' : 'text-text-muted group-hover:text-primary'}`} />}
-                      {cat.name}
-                    </span>
-                    <ChevronRight size={14} className={`transition-colors ${activeCategory === cat.id ? 'text-primary' : 'text-text-muted group-hover:text-primary'}`} />
-                  </Link>
-                </li>
+                  <li key={category.id} onMouseEnter={() => setActiveCategory(category.id)}>
+                    <Link
+                      to={`/category/${category.id}`}
+                      onFocus={() => setActiveCategory(category.id)}
+                      className={`group flex min-h-10 items-center justify-between rounded-md px-3 py-2 font-medium transition-colors ${
+                        isActive ? 'bg-primary/[0.08] text-primary-hover' : 'text-text-muted hover:bg-primary/[0.05] hover:text-primary-hover'
+                      }`}
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        {Icon && <Icon size={16} strokeWidth={1.7} className="shrink-0 text-primary/75" aria-hidden="true" />}
+                        <span className="truncate">{category.name}</span>
+                      </span>
+                      <ChevronRight size={14} className="shrink-0 opacity-60 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                    </Link>
+                  </li>
                 );
               })}
             </ul>
 
-            {/* Mega Menu Panel */}
-            {activeCategory && categories.find(c => c.id === activeCategory)?.category_groups?.length > 0 && (
-              <div 
-                className="absolute top-0 left-full ml-[2px] w-[800px] min-h-[420px] bg-bg-main border border-border-subtle shadow-2xl rounded-sm p-6 z-[100] animate-in fade-in slide-in-from-left-2 duration-200"
-              >
-                <div className="grid grid-cols-3 gap-8">
-                  {categories.find(c => c.id === activeCategory).category_groups.map((group) => (
-                    <div key={group.id} className="flex flex-col gap-3">
-                      <h3 className="text-primary font-bold text-sm uppercase tracking-wider border-b border-border-subtle pb-2">
+            {activeCategoryData?.category_groups?.length > 0 && (
+              <div className="luxury-panel absolute left-full top-0 z-50 ml-2 min-h-[420px] w-[min(800px,calc(100vw-330px))] rounded-[10px] p-7">
+                <div className="grid grid-cols-3 gap-x-8 gap-y-7">
+                  {activeCategoryData.category_groups.map((group) => (
+                    <div key={group.id}>
+                      <h3 className="mb-3 border-b border-border-subtle pb-2 text-xs font-bold uppercase tracking-[0.1em] text-primary-hover">
                         {group.name}
                       </h3>
-                      <ul className="flex flex-col gap-2">
+                      <ul className="space-y-2.5">
                         {group.category_items?.map((item) => (
                           <li key={item.id}>
-                            <Link 
-                              to={item.link_url} 
-                              className="text-text-muted hover:text-text-main hover:translate-x-1 inline-block transition-all text-[13px]"
+                            <Link
+                              to={item.link_url || '/products'}
+                              className="inline-flex min-h-6 items-center text-[13px] text-text-muted transition-all hover:translate-x-1 hover:text-text-main"
                             >
                               {item.name}
                             </Link>
@@ -178,156 +231,100 @@ export default function Home() {
                 </div>
               </div>
             )}
-          </div>
+          </nav>
 
-          
-          {/* Main Banners */}
-          <div className="flex-1 flex flex-col gap-[10px] min-w-0">
+          <div className="min-w-0 flex-1 space-y-3">
             {loadingBanners ? (
-              <div className="bg-bg-card w-full h-[320px] md:h-[420px] rounded-sm flex items-center justify-center border border-border-subtle animate-pulse">
-                <span className="text-text-muted">Đang tải...</span>
+              <div className="luxury-hero flex h-[340px] w-full animate-pulse items-center justify-center rounded-[10px] md:h-[420px]" role="status">
+                <span className="luxury-eyebrow">Đang chuẩn bị bộ sưu tập...</span>
               </div>
-            ) : mainBanners.length > 0 ? (
-              <div className="bg-bg-card w-full h-[320px] md:h-[420px] rounded-sm relative overflow-hidden flex items-center justify-center group shadow-sm border border-border-subtle hover-lift">
-                {mainBanners.map((banner, index) => (
-                  <div 
-                    key={banner.id}
-                    className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
-                  >
-                    <img 
-                      src={banner.image_url} 
-                      alt="Main Banner" 
-                      className={`w-full h-full object-cover opacity-50 transition-transform duration-[4000ms] ease-out ${index === currentSlide ? 'scale-105' : 'scale-100'}`} 
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-r from-bg-main/90 via-bg-main/50 to-transparent flex items-center p-8 md:p-12">
-                       <div className="text-text-main max-w-lg">
-                         {banner.tag && <div className="inline-block px-3 py-1 bg-transparent border border-primary text-primary text-[10px] font-bold rounded-sm mb-6 uppercase tracking-widest">{banner.tag}</div>}
-                         <h2 className="text-4xl md:text-5xl font-black mb-4 leading-tight tracking-tight text-text-main">{banner.title1} <br/><span className="text-primary">{banner.title2}</span></h2>
-                         <p className="text-text-muted text-sm md:text-base mb-8 font-normal tracking-wide whitespace-pre-line">{banner.description}</p>
-                         <Link to={banner.link_url} className="inline-block bg-primary hover:bg-primary-hover text-bg-main font-bold py-3 px-8 rounded-sm transition-colors text-sm uppercase tracking-wider">
-                           {banner.button_text}
-                         </Link>
-                       </div>
+            ) : activeBanner ? (
+              <div
+                className="luxury-hero group relative h-[340px] w-full overflow-hidden rounded-[10px] md:h-[420px]"
+                onMouseEnter={() => setCarouselPaused(true)}
+                onMouseLeave={() => setCarouselPaused(false)}
+                onFocus={() => setCarouselPaused(true)}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) setCarouselPaused(false);
+                }}
+                aria-roledescription="carousel"
+                aria-label="Bộ sưu tập nổi bật"
+              >
+                <div key={activeBanner.id} className="absolute inset-0">
+                  <img
+                    src={activeBanner.image_url}
+                    alt={`${activeBanner.title1 ?? ''} ${activeBanner.title2 ?? ''}`.trim()}
+                    className="h-full w-full object-cover opacity-55 transition-transform duration-[5000ms] ease-out group-hover:scale-[1.035]"
+                  />
+                  <div className="absolute inset-0 flex items-center bg-gradient-to-r from-[#090907]/95 via-[#090907]/65 to-transparent p-7 md:p-12">
+                    <div className="max-w-xl">
+                      {activeBanner.tag && <span className="luxury-eyebrow mb-6 inline-flex rounded border border-primary/40 bg-bg-main/55 px-3 py-2 backdrop-blur">{activeBanner.tag}</span>}
+                      <h1 className="luxury-heading mb-5 text-3xl leading-[1.12] sm:text-4xl md:text-5xl">
+                        {activeBanner.title1}<br />
+                        <span className="luxury-gold-text">{activeBanner.title2}</span>
+                      </h1>
+                      {activeBanner.description && <p className="mb-8 max-w-lg whitespace-pre-line text-sm leading-7 text-text-muted md:text-base">{activeBanner.description}</p>}
+                      <Link
+                        to={activeBanner.link_url || '/products'}
+                        className="luxury-primary-button inline-flex min-h-11 items-center gap-2 rounded-md px-6 text-xs font-bold uppercase tracking-[0.1em]"
+                      >
+                        {activeBanner.button_text || 'Khám phá ngay'}
+                        <ChevronRight size={16} aria-hidden="true" />
+                      </Link>
                     </div>
                   </div>
-                ))}
-                
-                {/* Dots Indicator */}
+                </div>
+
                 {mainBanners.length > 1 && (
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-                    {mainBanners.map((_, index) => (
+                  <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center rounded-full border border-border-subtle bg-bg-main/70 px-1 backdrop-blur">
+                    {mainBanners.map((banner, index) => (
                       <button
-                        key={index}
+                        key={banner.id}
+                        type="button"
                         onClick={() => setCurrentSlide(index)}
-                        className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                          index === currentSlide 
-                            ? 'bg-primary w-6' 
-                            : 'bg-text-muted/50 hover:bg-text-muted'
-                        }`}
-                        aria-label={`Go to slide ${index + 1}`}
-                      />
+                        className="grid h-11 w-11 place-items-center rounded-full"
+                        aria-label={`Xem banner ${index + 1}: ${banner.title1}`}
+                        aria-pressed={index === currentSlide}
+                      >
+                        <span className={`h-1.5 rounded-full transition-all ${index === currentSlide ? 'w-6 bg-primary-hover' : 'w-1.5 bg-text-muted/60'}`} />
+                      </button>
                     ))}
                   </div>
                 )}
               </div>
-            ) : null}
-            
-            {/* Sub Banners Dynamic */}
+            ) : (
+              <div className="luxury-hero flex h-[340px] items-center justify-center rounded-[10px] md:h-[420px]">
+                <div className="text-center">
+                  <p className="luxury-eyebrow mb-3">Laptop World</p>
+                  <p className="luxury-heading text-xl">Phần cứng tuyển chọn cho cấu hình xứng tầm</p>
+                </div>
+              </div>
+            )}
+
             {!loadingBanners && subBanners.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-[10px]">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 {subBanners.map((banner) => (
-                 <Link key={banner.id} to={banner.link_url} className={`h-[150px] rounded-sm overflow-hidden relative group hover-lift border border-border-subtle ${banner.hidden_on_mobile ? 'hidden md:block' : ''}`}>
-                    <img src={banner.image_url} alt={banner.title1} className="w-full h-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-500" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-bg-main/90 via-bg-main/20 to-transparent flex flex-col justify-end p-4">
-                      <span className={`${banner.tag_color} text-[10px] font-bold uppercase tracking-widest mb-1`}>{banner.tag}</span>
-                      <span className="text-text-main font-bold text-base leading-tight group-hover:text-primary transition-colors">{banner.title1}</span>
-                    </div>
-                 </Link>
+                  <Link
+                    key={banner.id}
+                    to={banner.link_url || '/products'}
+                    className={`luxury-panel hover-lift group relative h-[150px] overflow-hidden rounded-[10px] ${banner.hidden_on_mobile ? 'hidden md:block' : ''}`}
+                  >
+                    <img src={banner.image_url} alt={banner.title1 || banner.tag || 'Bộ sưu tập sản phẩm'} loading="lazy" decoding="async" className="h-full w-full object-cover opacity-55 transition-transform duration-500 group-hover:scale-105" />
+                    <span className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-bg-main via-bg-main/25 to-transparent p-4">
+                      {banner.tag && <span className="luxury-eyebrow mb-1">{banner.tag}</span>}
+                      <strong className="font-['Sora'] text-sm leading-snug text-text-main transition-colors group-hover:text-primary-hover sm:text-base">{banner.title1}</strong>
+                    </span>
+                  </Link>
                 ))}
               </div>
             )}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Flash Sale Products */}
-      {flashSaleProducts.length > 0 && (
-      <div className="w-full px-[10px] mb-16">
-        <div className="container mx-auto px-4 max-w-[1400px]">
-          <div className="flex justify-between items-end mb-6 border-b border-border-subtle pb-3">
-            <h2 className="text-xl font-bold uppercase text-text-main tracking-tight flex items-center gap-3">
-              Flash <span className="text-primary">Sale</span>
-              <div className="flex gap-2 items-center ml-4">
-                <div className="bg-bg-main border border-border-subtle px-2 py-1 rounded text-primary font-mono font-bold text-sm">
-                  {String(countdown.hours).padStart(2, '0')}
-                </div>
-                <span className="text-text-muted font-bold">:</span>
-                <div className="bg-bg-main border border-border-subtle px-2 py-1 rounded text-primary font-mono font-bold text-sm">
-                  {String(countdown.minutes).padStart(2, '0')}
-                </div>
-                <span className="text-text-muted font-bold">:</span>
-                <div className="bg-bg-main border border-border-subtle px-2 py-1 rounded text-primary font-mono font-bold text-sm">
-                  {String(countdown.seconds).padStart(2, '0')}
-                </div>
-              </div>
-            </h2>
-            <Link to="/products?sort=flash-sale" className="text-text-muted hover:text-primary font-medium text-xs flex items-center gap-1 transition-colors group uppercase tracking-widest">
-              Xem tất cả <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-4">
-            {flashSaleProducts.slice(0, 10).map((product) => (
-              <ProductCard key={product.id} product={formatProductForCard(product)} />
-            ))}
-          </div>
-        </div>
-      </div>
-      )}
-
-      {/* Best Seller Products */}
-      {bestSellerProducts.length > 0 && (
-      <div className="w-full px-[10px] mb-16">
-        <div className="container mx-auto px-4 max-w-[1400px]">
-          <div className="flex justify-between items-end mb-6 border-b border-border-subtle pb-3">
-            <h2 className="text-xl font-bold uppercase text-text-main tracking-tight flex items-center gap-3">
-              Bán Chạy <span className="text-primary">Nhất</span>
-            </h2>
-            <Link to="/products?sort=best-seller" className="text-text-muted hover:text-primary font-medium text-xs flex items-center gap-1 transition-colors group uppercase tracking-widest">
-              Xem tất cả <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-4">
-            {bestSellerProducts.slice(0, 10).map((product) => (
-              <ProductCard key={product.id} product={formatProductForCard(product)} />
-            ))}
-          </div>
-        </div>
-      </div>
-      )}
-
-      {/* Newest Products */}
-      {newestProducts.length > 0 && (
-      <div className="w-full px-[10px] mb-16">
-        <div className="container mx-auto px-4 max-w-[1400px]">
-          <div className="flex justify-between items-end mb-6 border-b border-border-subtle pb-3">
-            <h2 className="text-xl font-bold uppercase text-text-main tracking-tight flex items-center gap-3">
-              Sản Phẩm <span className="text-primary">Mới Nhất</span>
-            </h2>
-            <Link to="/products?sort=newest" className="text-text-muted hover:text-primary font-medium text-xs flex items-center gap-1 transition-colors group uppercase tracking-widest">
-              Xem tất cả <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-4">
-            {newestProducts.slice(0, 10).map((product) => (
-              <ProductCard key={product.id} product={formatProductForCard(product)} />
-            ))}
-          </div>
-        </div>
-      </div>
-      )}
+      <ProductSection eyebrow="Ưu đãi tuyển chọn" title="Flash" accent="Sale" href="/products?sort=flash-sale" products={flashSaleProducts} />
+      <ProductSection eyebrow="Được tin chọn" title="Bán chạy" accent="nhất" href="/products?sort=best-seller" products={bestSellerProducts} />
+      <ProductSection eyebrow="Vừa cập nhật" title="Sản phẩm" accent="mới nhất" href="/products?sort=newest" products={newestProducts} />
     </>
   );
 }

@@ -4,9 +4,15 @@ import Footer from './Footer';
 
 export default function MainLayout() {
   return (
-    <div className="min-h-screen flex flex-col bg-bg-main">
+    <div className="min-h-screen flex flex-col bg-transparent">
+      <a
+        href="#main-content"
+        className="fixed left-4 top-3 z-[100] -translate-y-20 rounded-md bg-primary px-4 py-2 text-sm font-bold text-bg-main transition-transform focus:translate-y-0"
+      >
+        Chuyển tới nội dung chính
+      </a>
       <Header />
-      <main className="flex-1 bg-bg-main">
+      <main id="main-content" className="flex-1 bg-transparent" tabIndex={-1}>
         <Outlet />
       </main>
       <Footer />

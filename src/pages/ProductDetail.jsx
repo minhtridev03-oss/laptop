@@ -277,7 +277,7 @@ function ProductDetailError({ notFound, onRetry }) {
       <div className="pd-container pd-state-wrap">
         <div className="pd-state-card" role="alert">
           <span className="pd-state-icon"><AlertTriangle aria-hidden="true" /></span>
-          <p className="pd-kicker">{notFound ? 'PRODUCT_NOT_FOUND' : 'CONNECTION_ERROR'}</p>
+          <p className="pd-kicker">{notFound ? 'KHÔNG TÌM THẤY' : 'KẾT NỐI GIÁN ĐOẠN'}</p>
           <h1>{notFound ? 'Không tìm thấy sản phẩm' : 'Chưa thể tải dữ liệu'}</h1>
           <p>{notFound
             ? 'Sản phẩm này có thể đã ngừng kinh doanh hoặc đường dẫn không còn chính xác.'
@@ -315,7 +315,7 @@ function ProductGallery({ images, name, discount }) {
   return (
     <section className="pd-panel pd-gallery" aria-label="Hình ảnh sản phẩm">
       <div className="pd-gallery-head">
-        <span className="pd-kicker">PRODUCT_VISUAL</span>
+        <span className="pd-kicker">HÌNH ẢNH SẢN PHẨM</span>
         {images.length > 0 && <span className="pd-image-counter" aria-live="polite">
           {String(activeIndex + 1).padStart(2, '0')} / {String(images.length).padStart(2, '0')}
         </span>}
@@ -401,7 +401,7 @@ function ProductInformation({ description, specs, warranty, youtubeLink }) {
   if (description.length === 0 && specs.length === 0 && !isDisplayValue(warranty) && !isDisplayValue(youtubeLink)) return null;
   return (
     <section className="pd-panel pd-information" id="product-information" aria-labelledby="information-heading">
-      <div className="pd-section-heading"><div><p className="pd-kicker">TECHNICAL_DATA</p><h2 id="information-heading">Thông tin sản phẩm</h2></div><span className="pd-section-line" aria-hidden="true" /></div>
+      <div className="pd-section-heading"><div><p className="pd-kicker">THÔNG SỐ CHI TIẾT</p><h2 id="information-heading">Thông tin sản phẩm</h2></div><span className="pd-section-line" aria-hidden="true" /></div>
       {description.length > 0 && <div className="pd-description"><h3>Mô tả</h3>
         {description.map((paragraph, index) => <p key={`${paragraph.slice(0, 24)}-${index}`}>{paragraph}</p>)}
       </div>}
@@ -427,7 +427,7 @@ function RelatedProductCard({ product }) {
   const specs = normalizeSpecs(product).slice(0, 2);
   return <Link to={`/product/${product.id}`} className="pd-related-card">
     <div className="pd-related-image">{discount > 0 && <span>-{Math.round(discount)}%</span>}
-      {image ? <img src={image} alt={product.name} /> : <ImageOff size={24} aria-hidden="true" />}
+      {image ? <img src={image} alt={product.name} loading="lazy" decoding="async" /> : <ImageOff size={24} aria-hidden="true" />}
     </div>
     <div className="pd-related-copy"><h3>{product.name}</h3>
       {specs.length > 0 && <div className="pd-related-specs">{specs.map((spec) => <span key={`${product.id}-${spec.key}`}>{spec.value}</span>)}</div>}
@@ -441,7 +441,7 @@ function RelatedProductCard({ product }) {
 function RelatedProducts({ products }) {
   if (products.length === 0) return null;
   return <aside className="pd-panel pd-related" aria-labelledby="related-heading">
-    <div className="pd-section-heading pd-section-heading--compact"><div><p className="pd-kicker">SAME_CATEGORY</p><h2 id="related-heading">Sản phẩm tương tự</h2></div></div>
+    <div className="pd-section-heading pd-section-heading--compact"><div><p className="pd-kicker">CÙNG PHÂN KHÚC</p><h2 id="related-heading">Sản phẩm tương tự</h2></div></div>
     <div className="pd-related-list">{products.map((product) => <RelatedProductCard product={product} key={product.id} />)}</div>
   </aside>;
 }

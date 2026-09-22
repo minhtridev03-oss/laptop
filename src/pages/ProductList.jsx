@@ -1,78 +1,228 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useParams, Link } from 'react-router-dom';
-import { products, categories } from '../data/mockData';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { ChevronRight, Filter, PackageSearch, SlidersHorizontal } from 'lucide-react';
 import ProductCard from '../components/ui/ProductCard';
-import { Filter } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+
+const priceRanges = [
+  { id: 'all', label: 'Tất cả mức giá', test: () => true },
+  { id: 'under-10', label: 'Dưới 10 triệu', test: (price) => price < 10_000_000 },
+  { id: '10-15', label: '10 – 15 triệu', test: (price) => price >= 10_000_000 && price < 15_000_000 },
+  { id: '15-20', label: '15 – 20 triệu', test: (price) => price >= 15_000_000 && price < 20_000_000 },
+  { id: 'over-20', label: 'Trên 20 triệu', test: (price) => price >= 20_000_000 },
+];
+
+const sortOptions = [
+  { id: 'featured', label: 'Nổi bật' },
+  { id: 'newest', label: 'Mới nhất' },
+  { id: 'best-seller', label: 'Bán chạy' },
+  { id: 'flash-sale', label: 'Đang ưu đãi' },
+  { id: 'price-asc', label: 'Giá thấp đến cao' },
+  { id: 'price-desc', label: 'Giá cao đến thấp' },
+];
+
+const formatProductForCard = (product) => ({
+  id: product.id,
+  name: product.name,
+  price: product.price,
+  originalPrice: product.original_price,
+  discount: product.discount,
+  category: product.category_id,
+  image: product.image_url,
+  specs: {
+    cpu: product.spec_cpu,
+    ram: product.spec_ram,
+    storage: product.spec_storage,
+    gpu: product.spec_gpu,
+  },
+  isHot: product.is_hot,
+});
 
 export default function ProductList() {
   const { categoryId } = useParams();
-  const category = categories.find(c => c.id === categoryId) || { name: 'Tất cả sản phẩm' };
-  
-  // Lọc sản phẩm theo category (nếu có)
-  const filteredProducts = categoryId 
-    ? products.filter(p => p.category === categoryId)
-    : products;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [priceRange, setPriceRange] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const query = (searchParams.get('q') ?? '').trim();
+  const requestedSort = searchParams.get('sort') ?? 'featured';
+  const sort = sortOptions.some((option) => option.id === requestedSort) ? requestedSort : 'featured';
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function fetchCatalog() {
+      setLoading(true);
+      setError(null);
+      try {
+        const [productsResponse, categoriesResponse] = await Promise.all([
+          supabase.from('products').select('*').order('sort_order', { ascending: true }),
+          supabase.from('categories').select('id, name, sort_order').order('sort_order', { ascending: true }),
+        ]);
+
+        if (productsResponse.error) throw productsResponse.error;
+        if (categoriesResponse.error) throw categoriesResponse.error;
+        if (!ignore) {
+          setProducts(productsResponse.data ?? []);
+          setCategories(categoriesResponse.data ?? []);
+        }
+      } catch (fetchError) {
+        if (!ignore) setError(fetchError);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+
+    fetchCatalog();
+    return () => { ignore = true; };
+  }, []);
+
+  const category = categories.find((item) => String(item.id) === String(categoryId));
+  const pageTitle = category?.name ?? (query ? `Kết quả cho “${query}”` : 'Tất cả sản phẩm');
+
+  const filteredProducts = useMemo(() => {
+    const activeRange = priceRanges.find((range) => range.id === priceRange) ?? priceRanges[0];
+    const normalizedQuery = query.toLocaleLowerCase('vi');
+    let result = products.filter((product) => {
+      const matchesCategory = !categoryId || String(product.category_id) === String(categoryId);
+      const matchesQuery = !normalizedQuery || product.name?.toLocaleLowerCase('vi').includes(normalizedQuery);
+      const matchesPrice = activeRange.test(Number(product.price) || 0);
+      return matchesCategory && matchesQuery && matchesPrice;
+    });
+
+    if (sort === 'flash-sale') result = result.filter((product) => product.is_flash_sale);
+    if (sort === 'best-seller') result = result.filter((product) => product.is_best_seller);
+    if (sort === 'newest') result = result.filter((product) => product.is_new);
+    if (sort === 'price-asc') result = [...result].sort((a, b) => Number(a.price) - Number(b.price));
+    if (sort === 'price-desc') result = [...result].sort((a, b) => Number(b.price) - Number(a.price));
+
+    return result;
+  }, [categoryId, priceRange, products, query, sort]);
+
+  const handleSortChange = (event) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (event.target.value === 'featured') nextParams.delete('sort');
+    else nextParams.set('sort', event.target.value);
+    setSearchParams(nextParams);
+  };
 
   return (
     <>
       <Helmet>
-        <title>{category.name} | Laptop World</title>
-        <meta name="description" content={`Danh sách ${category.name} chính hãng, giá cực sốc tại Laptop World.`} />
+        <title>{pageTitle} | Laptop World</title>
+        <meta name="description" content={`Khám phá ${pageTitle.toLocaleLowerCase('vi')} chính hãng, cấu hình minh bạch và tư vấn chuyên sâu tại Laptop World.`} />
       </Helmet>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Filter Sidebar */}
-          <div className="w-full md:w-1/4">
-            <div className="bg-bg-card rounded-sm shadow-sm border border-border-subtle p-5">
-              <div className="flex items-center gap-2 font-bold text-lg border-b border-border-subtle pb-3 mb-4 text-text-main">
-                <Filter size={20} className="text-primary" />
-                BỘ LỌC TÌM KIẾM
-              </div>
-              
-              <div className="mb-6">
-                <h4 className="font-semibold mb-3 text-text-main">Mức giá</h4>
-                <div className="space-y-2 text-sm text-text-muted">
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"><input type="checkbox" className="rounded-sm border-border-subtle bg-bg-main text-primary focus:ring-primary focus:ring-offset-bg-card" /> Dưới 10 triệu</label>
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"><input type="checkbox" className="rounded-sm border-border-subtle bg-bg-main text-primary focus:ring-primary focus:ring-offset-bg-card" /> 10 - 15 triệu</label>
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"><input type="checkbox" className="rounded-sm border-border-subtle bg-bg-main text-primary focus:ring-primary focus:ring-offset-bg-card" /> 15 - 20 triệu</label>
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"><input type="checkbox" className="rounded-sm border-border-subtle bg-bg-main text-primary focus:ring-primary focus:ring-offset-bg-card" /> Trên 20 triệu</label>
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="font-semibold mb-3 text-text-main">Thương hiệu</h4>
-                <div className="space-y-2 text-sm text-text-muted">
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"><input type="checkbox" className="rounded-sm border-border-subtle bg-bg-main text-primary focus:ring-primary focus:ring-offset-bg-card" /> Asus</label>
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"><input type="checkbox" className="rounded-sm border-border-subtle bg-bg-main text-primary focus:ring-primary focus:ring-offset-bg-card" /> Dell</label>
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"><input type="checkbox" className="rounded-sm border-border-subtle bg-bg-main text-primary focus:ring-primary focus:ring-offset-bg-card" /> Lenovo</label>
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"><input type="checkbox" className="rounded-sm border-border-subtle bg-bg-main text-primary focus:ring-primary focus:ring-offset-bg-card" /> Apple</label>
-                </div>
-              </div>
+      <section className="luxury-page-section mx-auto min-h-[70vh] w-full max-w-[1440px] px-4 py-9 lg:px-6 lg:py-12">
+        <div className="mb-8">
+          <p className="luxury-eyebrow mb-3">DANH MỤC SẢN PHẨM</p>
+          <div className="flex flex-col justify-between gap-5 border-b border-border-subtle pb-6 sm:flex-row sm:items-end">
+            <div>
+              <h1 className="luxury-heading text-2xl sm:text-3xl">{pageTitle}</h1>
+              <p className="mt-2 text-sm text-text-muted">
+                {loading ? 'Đang cập nhật danh mục...' : `${filteredProducts.length} sản phẩm phù hợp`}
+              </p>
             </div>
+            <label className="flex min-h-11 items-center gap-3 rounded-md border border-border-subtle bg-bg-card/80 px-3 text-xs text-text-muted">
+              <SlidersHorizontal size={16} className="text-primary" aria-hidden="true" />
+              <span className="sr-only sm:not-sr-only">Sắp xếp</span>
+              <select
+                value={sort}
+                onChange={handleSortChange}
+                className="min-w-[155px] bg-transparent py-2 font-semibold text-text-main outline-none"
+                aria-label="Sắp xếp sản phẩm"
+              >
+                {sortOptions.map((option) => <option key={option.id} value={option.id} className="bg-bg-card">{option.label}</option>)}
+              </select>
+            </label>
           </div>
+        </div>
 
-          {/* Product Grid */}
-          <div className="w-full md:w-3/4">
-            <h1 className="text-2xl font-black mb-6 text-text-main flex items-center gap-3 uppercase tracking-tight">
-              {category.name}
-              <span className="text-xs font-bold text-primary border border-border-subtle bg-bg-card px-2.5 py-1 rounded-sm">{filteredProducts.length} sản phẩm</span>
-            </h1>
+        <div className="grid items-start gap-6 md:grid-cols-[250px_minmax(0,1fr)] lg:gap-8">
+          <details className="group md:block">
+            <summary className="luxury-panel flex min-h-12 cursor-pointer list-none items-center justify-between rounded-[10px] px-4 text-sm font-semibold text-text-main md:hidden">
+              <span className="flex items-center gap-2"><Filter size={17} className="text-primary" aria-hidden="true" /> Bộ lọc sản phẩm</span>
+              <ChevronRight size={16} className="transition-transform group-open:rotate-90" aria-hidden="true" />
+            </summary>
+            <aside className="luxury-panel mt-3 hidden rounded-[10px] p-5 group-open:block md:mt-0 md:block" aria-label="Bộ lọc sản phẩm">
+              <div className="mb-5 border-b border-border-subtle pb-4">
+                <p className="luxury-eyebrow mb-1">BỘ LỌC</p>
+                <h2 className="font-['Sora'] text-sm font-bold text-text-main">Tinh chỉnh lựa chọn</h2>
+              </div>
 
-            {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-2 xl:grid-cols-3 gap-4 md:gap-5">
-                {filteredProducts.map(product => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
+              <fieldset className="mb-7">
+                <legend className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-text-main">Mức giá</legend>
+                <div className="space-y-1">
+                  {priceRanges.map((range) => (
+                    <button
+                      key={range.id}
+                      type="button"
+                      onClick={() => setPriceRange(range.id)}
+                      aria-pressed={priceRange === range.id}
+                      className={`flex min-h-10 w-full items-center rounded-md px-3 text-left text-sm transition-colors ${
+                        priceRange === range.id ? 'bg-primary/[0.09] text-primary-hover' : 'text-text-muted hover:bg-primary/[0.05] hover:text-text-main'
+                      }`}
+                    >
+                      <span className={`mr-3 h-1.5 w-1.5 rounded-full ${priceRange === range.id ? 'bg-primary-hover' : 'bg-border-subtle'}`} />
+                      {range.label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div>
+                <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-text-main">Danh mục</h2>
+                <nav className="custom-scrollbar max-h-64 space-y-1 overflow-y-auto pr-1" aria-label="Lọc theo danh mục">
+                  <Link to="/products" className={`flex min-h-10 items-center rounded-md px-3 text-sm transition-colors ${!categoryId ? 'bg-primary/[0.09] text-primary-hover' : 'text-text-muted hover:text-text-main'}`}>
+                    Tất cả sản phẩm
+                  </Link>
+                  {categories.map((item) => (
+                    <Link
+                      key={item.id}
+                      to={`/category/${item.id}`}
+                      className={`flex min-h-10 items-center rounded-md px-3 text-sm transition-colors ${
+                        String(item.id) === String(categoryId) ? 'bg-primary/[0.09] text-primary-hover' : 'text-text-muted hover:text-text-main'
+                      }`}
+                    >
+                      {item.name}
+                    </Link>
+                  ))}
+                </nav>
+              </div>
+            </aside>
+          </details>
+
+          <div className="min-w-0">
+            {loading ? (
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-5" role="status" aria-label="Đang tải sản phẩm">
+                {[0, 1, 2, 3, 4, 5].map((item) => <div key={item} className="luxury-panel h-[390px] animate-pulse rounded-[10px]" />)}
+              </div>
+            ) : error ? (
+              <div className="luxury-panel rounded-[10px] px-6 py-16 text-center">
+                <PackageSearch size={34} className="mx-auto mb-4 text-primary" aria-hidden="true" />
+                <h2 className="luxury-heading mb-2 text-lg">Chưa thể tải danh mục</h2>
+                <p className="text-sm text-text-muted">Dữ liệu đang gián đoạn. Vui lòng tải lại trang sau ít phút.</p>
+              </div>
+            ) : filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-5">
+                {filteredProducts.map((product) => <ProductCard key={product.id} product={formatProductForCard(product)} />)}
               </div>
             ) : (
-              <div className="bg-bg-card p-12 text-center rounded-sm border border-border-subtle text-text-muted">
-                Không tìm thấy sản phẩm nào phù hợp.
+              <div className="luxury-panel rounded-[10px] px-6 py-16 text-center">
+                <PackageSearch size={34} className="mx-auto mb-4 text-primary" aria-hidden="true" />
+                <h2 className="luxury-heading mb-2 text-lg">Chưa tìm thấy lựa chọn phù hợp</h2>
+                <p className="mb-6 text-sm text-text-muted">Thử đổi mức giá, danh mục hoặc từ khóa tìm kiếm.</p>
+                <Link to="/products" className="luxury-primary-button inline-flex min-h-11 items-center rounded-md px-5 text-xs font-bold uppercase tracking-[0.08em]">
+                  Xem toàn bộ sản phẩm
+                </Link>
               </div>
             )}
           </div>
         </div>
-      </div>
+      </section>
     </>
   );
 }
