@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
+import CommerceToast from '../ui/CommerceToast';
 
 export default function MainLayout() {
   return (
@@ -16,6 +17,7 @@ export default function MainLayout() {
         <Outlet />
       </main>
       <Footer />
+      <CommerceToast />
     </div>
   );
 }

@@ -215,6 +215,10 @@
 .pd-badge--purple { color: var(--pd-purple); background: rgba(197, 139, 114, 0.06); }
 .pd-badge--orange { color: var(--pd-orange); background: rgba(255, 189, 102, 0.06); }
 
+.pd-save-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.pd-save-actions .pd-button { min-height: 38px; padding: 7px 11px; color: var(--pd-muted); font-size: 11px; }
+.pd-save-actions .pd-button.is-active { border-color: rgba(214, 184, 115, 0.55); color: var(--pd-cyan-soft); background: rgba(214, 184, 115, 0.08); }
+
 .pd-purchase h1, .pd-section-heading h2, .pd-state-card h1 { font-family: 'Sora', system-ui, sans-serif; font-weight: 700; letter-spacing: -0.025em; }
 .pd-purchase h1 { margin: 0 0 16px; color: var(--pd-text); font-size: clamp(24px, 2.15vw, 34px); line-height: 1.28; }
 .pd-meta-row { flex-wrap: wrap; gap: 10px 16px; margin-bottom: 22px; }

@@ -1,12 +1,18 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Cpu, MapPin, Menu, Search, ShoppingBag, UserRound, X } from 'lucide-react';
+import { Clock3, Heart, MapPin, Menu, Scale, Search, ShoppingBag, X } from 'lucide-react';
+import { useCommerce } from '../../context/CommerceContext';
 
-function HeaderAction({ to, icon: Icon, label, mobileVisible = false }) {
+function HeaderAction({ to, icon: Icon, label, count = 0, mobileVisible = false }) {
   const content = (
     <>
-      <span className="luxury-icon-button grid h-11 w-11 place-items-center rounded-lg group-hover:-translate-y-0.5">
+      <span className="luxury-icon-button relative grid h-11 w-11 place-items-center rounded-lg group-hover:-translate-y-0.5">
         <Icon size={19} strokeWidth={1.8} aria-hidden="true" />
+        {count > 0 && (
+          <span className="absolute -right-1.5 -top-1.5 grid min-h-5 min-w-5 place-items-center rounded-full border border-bg-main bg-primary px-1 font-['JetBrains_Mono'] text-[9px] font-bold text-[#171208]">
+            {count > 99 ? '99+' : count}
+          </span>
+        )}
       </span>
       <span className="hidden xl:block text-[10px] font-semibold uppercase tracking-[0.12em] text-text-muted group-hover:text-primary-hover transition-colors">
         {label}
@@ -31,6 +37,7 @@ function HeaderAction({ to, icon: Icon, label, mobileVisible = false }) {
 
 export default function Header() {
   const navigate = useNavigate();
+  const { cartCount, compare, wishlist } = useCommerce();
   const [query, setQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -56,8 +63,8 @@ export default function Header() {
             </span>
           </div>
           <nav className="flex items-center gap-5" aria-label="Liên kết hỗ trợ">
-            <Link to="/tin-tuc" className="transition-colors hover:text-primary-hover">Tin tức công nghệ</Link>
-            <Link to="/huong-dan" className="hidden transition-colors hover:text-primary-hover sm:block">Hướng dẫn mua hàng</Link>
+            <Link to="/order-lookup" className="transition-colors hover:text-primary-hover">Tra cứu đơn hàng</Link>
+            <Link to="/products" className="hidden transition-colors hover:text-primary-hover sm:block">Sản phẩm</Link>
           </nav>
         </div>
       </div>
@@ -96,9 +103,10 @@ export default function Header() {
         </form>
 
         <div className="flex items-center gap-2.5 lg:gap-4">
-          <HeaderAction to="/build-pc" icon={Cpu} label="Xây cấu hình" />
-          <HeaderAction icon={UserRound} label="Tài khoản" />
-          <HeaderAction to="/cart" icon={ShoppingBag} label="Giỏ hàng" mobileVisible />
+          <HeaderAction to="/recently-viewed" icon={Clock3} label="Đã xem" />
+          <HeaderAction to="/compare" icon={Scale} label="So sánh" count={compare.length} />
+          <HeaderAction to="/wishlist" icon={Heart} label="Yêu thích" count={wishlist.length} />
+          <HeaderAction to="/cart" icon={ShoppingBag} label="Giỏ hàng" count={cartCount} mobileVisible />
           <button
             type="button"
             className="luxury-icon-button grid h-11 w-11 place-items-center rounded-lg md:hidden"
@@ -133,6 +141,18 @@ export default function Header() {
           <div className="luxury-panel grid overflow-hidden rounded-[10px]">
             <Link to="/products" onClick={() => setMobileMenuOpen(false)} className="flex min-h-12 items-center justify-between border-b border-border-subtle px-4 text-sm font-semibold text-text-main hover:text-primary-hover">
               Tất cả sản phẩm <Search size={16} className="text-primary" aria-hidden="true" />
+            </Link>
+            <Link to="/wishlist" onClick={() => setMobileMenuOpen(false)} className="flex min-h-12 items-center justify-between border-b border-border-subtle px-4 text-sm font-semibold text-text-main hover:text-primary-hover">
+              Sản phẩm yêu thích <span className="flex items-center gap-2 text-primary"><span>{wishlist.length}</span><Heart size={16} aria-hidden="true" /></span>
+            </Link>
+            <Link to="/compare" onClick={() => setMobileMenuOpen(false)} className="flex min-h-12 items-center justify-between border-b border-border-subtle px-4 text-sm font-semibold text-text-main hover:text-primary-hover">
+              So sánh sản phẩm <span className="flex items-center gap-2 text-primary"><span>{compare.length}</span><Scale size={16} aria-hidden="true" /></span>
+            </Link>
+            <Link to="/recently-viewed" onClick={() => setMobileMenuOpen(false)} className="flex min-h-12 items-center justify-between border-b border-border-subtle px-4 text-sm font-semibold text-text-main hover:text-primary-hover">
+              Sản phẩm đã xem <Clock3 size={16} className="text-primary" aria-hidden="true" />
+            </Link>
+            <Link to="/order-lookup" onClick={() => setMobileMenuOpen(false)} className="flex min-h-12 items-center justify-between border-b border-border-subtle px-4 text-sm font-semibold text-text-main hover:text-primary-hover">
+              Tra cứu đơn hàng <Search size={16} className="text-primary" aria-hidden="true" />
             </Link>
             <a href="tel:0961560888" className="flex min-h-12 items-center justify-between px-4 text-sm font-semibold text-text-main hover:text-primary-hover">
               Tư vấn: 0961.56.0888 <MapPin size={16} className="text-primary" aria-hidden="true" />

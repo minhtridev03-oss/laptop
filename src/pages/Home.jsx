@@ -56,6 +56,8 @@ const formatProductForCard = (product) => ({
     gpu: product.spec_gpu,
   },
   isHot: product.is_hot,
+  stockQuantity: product.stock_quantity,
+  status: product.status,
 });
 
 function SectionHeading({ eyebrow, title, accent, href }) {

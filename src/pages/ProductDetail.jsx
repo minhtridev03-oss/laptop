@@ -1,5 +1,5 @@
 import { Helmet } from 'react-helmet-async';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Gift,
   HardDrive,
+  Heart,
   ImageOff,
   MemoryStick,
   Minus,
@@ -20,6 +21,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Scale,
   ShoppingCart,
   Sparkles,
   Star,
@@ -27,6 +29,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useCommerce } from '../context/CommerceContext';
 import './ProductDetail.css';
 
 const SPEC_LABELS = {
@@ -448,6 +451,8 @@ function RelatedProducts({ products }) {
 
 export default function ProductDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { addRecentlyViewed, addToCart, isCompared, isWishlisted, toggleCompare, toggleWishlist } = useCommerce();
   const [product, setProduct] = useState(null);
   const [category, setCategory] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -488,6 +493,10 @@ export default function ProductDetail() {
     return () => { ignore = true; };
   }, [id, retryKey]);
 
+  useEffect(() => {
+    if (product) addRecentlyViewed(product);
+  }, [addRecentlyViewed, product]);
+
   const images = useMemo(() => normalizeImages(product), [product]);
   const specs = useMemo(() => normalizeSpecs(product), [product]);
   const promotions = useMemo(() => normalizePromotions(product), [product]);
@@ -519,6 +528,13 @@ export default function ProductDetail() {
   const maxQuantity = stockState?.count && stockState.count > 0 ? stockState.count : Number.POSITIVE_INFINITY;
   const seoDescription = createSeoDescription(product, specs, description);
   const primaryImage = images[0];
+  const wished = isWishlisted(product.id);
+  const compared = isCompared(product.id);
+
+  const buyNow = () => {
+    addToCart(product, quantity);
+    navigate('/checkout');
+  };
 
   return <>
     <Helmet>
@@ -554,6 +570,14 @@ export default function ProductDetail() {
                 <Icon size={13} aria-hidden="true" /> {label}
               </span>)}
             </div>}
+            <div className="pd-save-actions" aria-label="Lưu và so sánh sản phẩm">
+              <button type="button" className={`pd-button pd-button--ghost ${wished ? 'is-active' : ''}`} onClick={() => toggleWishlist(product)} aria-pressed={wished}>
+                <Heart size={16} fill={wished ? 'currentColor' : 'none'} aria-hidden="true" /> {wished ? 'Đã yêu thích' : 'Yêu thích'}
+              </button>
+              <button type="button" className={`pd-button pd-button--ghost ${compared ? 'is-active' : ''}`} onClick={() => toggleCompare(product)} aria-pressed={compared}>
+                <Scale size={16} aria-hidden="true" /> {compared ? 'Đang so sánh' : 'So sánh'}
+              </button>
+            </div>
             <h1 id="product-title">{product.name}</h1>
             <div className="pd-meta-row">
               {isDisplayValue(sku) && <span className="pd-sku">{identifierLabel} // {sku}</span>}
@@ -574,11 +598,11 @@ export default function ProductDetail() {
                 <button type="button" onClick={() => setQuantity((value) => Math.min(maxQuantity, value + 1))}
                   disabled={quantity >= maxQuantity || !canPurchase} aria-label="Tăng số lượng"><Plus size={17} aria-hidden="true" /></button>
               </div>
-              <button type="button" className="pd-button pd-button--primary pd-add-cart" disabled={!canPurchase}>
+              <button type="button" className="pd-button pd-button--primary pd-add-cart" disabled={!canPurchase} onClick={() => addToCart(product, quantity)}>
                 <ShoppingCart size={19} aria-hidden="true" /><span>{canPurchase ? 'Thêm vào giỏ' : 'Hết hàng'}</span>
               </button>
             </div>
-            <button type="button" className="pd-button pd-button--buy" disabled={!canPurchase}>
+            <button type="button" className="pd-button pd-button--buy" disabled={!canPurchase} onClick={buyNow}>
               <Zap size={19} fill="currentColor" aria-hidden="true" /><span>{canPurchase ? 'Mua ngay' : 'Sản phẩm đang hết hàng'}</span>
             </button>
             {specs.length > 0 && <a href="#product-information" className="pd-spec-link">Xem toàn bộ thông số <ChevronRight size={15} aria-hidden="true" /></a>}
@@ -592,7 +616,7 @@ export default function ProductDetail() {
         </div>
       </div>
       <div className="pd-mobile-bar"><div><span>Giá sản phẩm</span><strong>{price ?? 'Liên hệ'}</strong></div>
-        <button type="button" className="pd-button pd-button--primary" disabled={!canPurchase}>
+        <button type="button" className="pd-button pd-button--primary" disabled={!canPurchase} onClick={() => addToCart(product, quantity)}>
           <ShoppingCart size={18} aria-hidden="true" /> {canPurchase ? 'Thêm vào giỏ' : 'Hết hàng'}
         </button>
       </div>

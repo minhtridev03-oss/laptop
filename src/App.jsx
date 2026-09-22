@@ -3,6 +3,12 @@ import MainLayout from './components/layout/MainLayout';
 import Home from './pages/Home';
 import ProductList from './pages/ProductList';
 import ProductDetail from './pages/ProductDetail';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
+import Compare from './pages/Compare';
+import SavedProducts from './pages/SavedProducts';
+import OrderLookup from './pages/OrderLookup';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -13,6 +19,13 @@ function App() {
           <Route path="category/:categoryId" element={<ProductList />} />
           <Route path="products" element={<ProductList />} />
           <Route path="product/:id" element={<ProductDetail />} />
+          <Route path="cart" element={<Cart />} />
+          <Route path="checkout" element={<Checkout />} />
+          <Route path="wishlist" element={<SavedProducts />} />
+          <Route path="recently-viewed" element={<SavedProducts mode="recent" />} />
+          <Route path="compare" element={<Compare />} />
+          <Route path="order-lookup" element={<OrderLookup />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
     </BrowserRouter>

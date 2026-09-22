@@ -1,7 +1,18 @@
 import { Headphones, MapPin, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-const companyLinks = ['Giới thiệu công ty', 'Tuyển dụng', 'Gửi góp ý, khiếu nại', 'Hệ thống cửa hàng'];
-const policyLinks = ['Chính sách bảo hành', 'Chính sách đổi trả', 'Chính sách bảo mật', 'Hướng dẫn mua trả góp'];
+const shoppingLinks = [
+  { label: 'Tất cả sản phẩm', to: '/products' },
+  { label: 'Giỏ hàng', to: '/cart' },
+  { label: 'Sản phẩm yêu thích', to: '/wishlist' },
+  { label: 'So sánh sản phẩm', to: '/compare' },
+];
+const supportLinks = [
+  { label: 'Tra cứu đơn hàng', to: '/order-lookup' },
+  { label: 'Sản phẩm đã xem', to: '/recently-viewed' },
+  { label: 'Tư vấn mua hàng', href: 'tel:0961560888' },
+  { label: 'Chỉ đường showroom', href: 'https://maps.google.com/?q=10+Ngõ+117+Thái+Hà+Hà+Nội' },
+];
 
 export default function Footer() {
   return (
@@ -42,8 +53,8 @@ export default function Footer() {
             </p>
           </div>
 
-          <FooterColumn title="Về Laptop World" items={companyLinks} />
-          <FooterColumn title="Chính sách" items={policyLinks} />
+          <FooterColumn title="Mua sắm" items={shoppingLinks} />
+          <FooterColumn title="Hỗ trợ" items={supportLinks} />
 
           <div>
             <h3 className="luxury-heading mb-5 text-sm uppercase tracking-[0.1em]">Thanh toán</h3>
@@ -74,11 +85,14 @@ function FooterColumn({ title, items }) {
       <h3 className="luxury-heading mb-5 text-sm uppercase tracking-[0.1em]">{title}</h3>
       <ul className="space-y-3 text-sm">
         {items.map((item) => (
-          <li key={item}>
-            <a href="#" className="group inline-flex items-center gap-2 transition-colors hover:text-primary-hover">
+          <li key={item.label}>
+            {item.to ? <Link to={item.to} className="group inline-flex items-center gap-2 transition-colors hover:text-primary-hover">
               <span className="h-px w-3 bg-border-subtle transition-all group-hover:w-5 group-hover:bg-primary" aria-hidden="true" />
-              {item}
-            </a>
+              {item.label}
+            </Link> : <a href={item.href} target={item.href.startsWith('http') ? '_blank' : undefined} rel={item.href.startsWith('http') ? 'noreferrer' : undefined} className="group inline-flex items-center gap-2 transition-colors hover:text-primary-hover">
+              <span className="h-px w-3 bg-border-subtle transition-all group-hover:w-5 group-hover:bg-primary" aria-hidden="true" />
+              {item.label}
+            </a>}
           </li>
         ))}
       </ul>
