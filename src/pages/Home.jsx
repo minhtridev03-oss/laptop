@@ -242,7 +242,7 @@ export default function Home() {
                         {group.category_items?.map((item) => (
                           <li key={item.id}>
                             <Link
-                              to={item.link_url || '/products'}
+                              to={`/category/${activeCategoryData.id}?series=${encodeURIComponent(item.id)}`}
                               className="inline-flex min-h-6 items-center text-[13px] text-text-muted transition-all hover:translate-x-1 hover:text-text-main"
                             >
                               {item.name}
